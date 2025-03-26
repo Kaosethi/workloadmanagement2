@@ -1,4 +1,4 @@
-```html
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,7 +15,11 @@
       // IMPORTANT: Replace this anon key with your *actual* Supabase anon key.
       // This key is publicly visible, so ensure your Row Level Security (RLS) policies are properly configured in Supabase.
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
-      const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+      // Correctly initialize the client
+      // Use the global 'supabase' object provided by the CDN script to call createClient
+      // Assign the result to a differently named variable, e.g., 'supabaseClient'
+      const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
     </script>
 
     <script>
@@ -82,10 +86,21 @@
         .dark .tab-button:not(.active) { color: #9ca3af; }
         .tab-button:not(.active):hover { background-color: #f3f4f6; color: #374151;}
         .dark .tab-button:not(.active):hover { background-color: #374151; color: #d1d5db;}
+        .loading-indicator {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 100; color: white; font-size: 1.2rem;
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
     <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen">
+
+        <div x-show="isLoading" class="loading-indicator animate-fade-in" x-cloak>
+            Loading Data...
+        </div>
+
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
@@ -418,7 +433,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 dark:text-gray-400">
                     <div>Tech Workload Manager © <span x-text="new Date().getFullYear()"></span></div>
-                    <div class="mt-2 md:mt-0">Version 1.2.0</div>
+                    <div class="mt-2 md:mt-0">Version 1.2.1</div>
                 </div>
             </div>
         </footer>
@@ -598,7 +613,7 @@
                 taskStatusChartInstance: null, weeklyWorkloadChartInstance: null,
                 showDatePickerModal: false,
                 datePickerDate: new Date(),
-                isLoading: true, // Added loading state
+                isLoading: true,
 
                 async initApp() {
                     window.appInstance = this;
@@ -608,7 +623,7 @@
                     this.resetTaskForm();
                     this.resetTeamMemberForm();
 
-                    await this.loadAllData(); // Load data from Supabase on init
+                    await this.loadAllData();
 
                     this.isLoading = false;
 
@@ -617,12 +632,12 @@
                     }
 
                     this.$watch(['currentView', 'calendarDate', 'selectedTeamMember'], Alpine.debounce(() => {
-                        if (this.currentView === 'dashboard' || this.currentView === 'calendar') {
+                        if (!this.isLoading && (this.currentView === 'dashboard' || this.currentView === 'calendar')) {
                             this.$nextTick(() => this.updateCharts());
                         }
                     }, 250));
                      this.$watch(['projects', 'sprints', 'tasks', 'teamMembers'], Alpine.debounce(() => {
-                        if (this.currentView === 'dashboard' || this.currentView === 'calendar') {
+                         if (!this.isLoading && (this.currentView === 'dashboard' || this.currentView === 'calendar')) {
                             this.$nextTick(() => this.updateCharts());
                         }
                     }, 500));
@@ -630,12 +645,14 @@
 
                 async loadAllData() {
                     console.log("Loading data from Supabase...");
+                    this.isLoading = true; // Ensure loading is true at the start
                     try {
+                        // Use supabaseClient defined globally
                         const [projectsRes, teamMembersRes, sprintsRes, tasksRes] = await Promise.all([
-                            supabase.from('projects').select('*'),
-                            supabase.from('team_members').select('*'),
-                            supabase.from('sprints').select('*'),
-                            supabase.from('tasks').select('*')
+                            supabaseClient.from('projects').select('*'),
+                            supabaseClient.from('team_members').select('*'),
+                            supabaseClient.from('sprints').select('*'),
+                            supabaseClient.from('tasks').select('*')
                         ]);
 
                         if (projectsRes.error) throw projectsRes.error;
@@ -648,21 +665,20 @@
                         this.sprints = sprintsRes.data || [];
                         this.tasks = (tasksRes.data || []).map(task => ({
                             ...task,
-                            estimatedHours: Number(task.estimatedHours) || 0 // Ensure hours are numbers
+                            estimatedHours: Number(task.estimatedHours) || 0
                         }));
 
                         console.log("Successfully loaded data from Supabase.");
                     } catch (error) {
                         console.error("Error loading data from Supabase:", error);
                         alert(`Failed to load data from database: ${error.message}. Please check console and ensure database tables exist and RLS is configured.`);
-                        // Keep existing data (if any) or empty arrays
                         this.projects = this.projects || [];
                         this.teamMembers = this.teamMembers || [];
                         this.sprints = this.sprints || [];
                         this.tasks = this.tasks || [];
                     } finally {
-                         // Ensure charts are initialized/updated after data load attempt
-                        if (this.currentView === 'dashboard') {
+                         this.isLoading = false; // Set loading to false when done or on error
+                         if (this.currentView === 'dashboard') {
                            this.$nextTick(() => this.initCharts());
                         } else if (this.currentView === 'calendar') {
                            this.$nextTick(() => {
@@ -690,13 +706,13 @@
                         };
 
                         try {
-                            const { error } = await supabase
+                            // Use supabaseClient
+                            const { error } = await supabaseClient
                                 .from('tasks')
                                 .update(updatedTaskData)
                                 .eq('id', taskId);
                             if (error) throw error;
 
-                            // Update local state only after successful DB update
                             const updatedTask = { ...this.tasks[taskIndex], ...updatedTaskData };
                             this.tasks.splice(taskIndex, 1, updatedTask);
                             console.log(`Task ${taskId} moved to ${day} ${timeBlock} in DB and local state.`);
@@ -714,7 +730,7 @@
                 handleDragOver(event) { if (this.draggedTask) { event.currentTarget.classList.add('drag-over'); } },
                 handleDragLeave(event) { if (!event.currentTarget.contains(event.relatedTarget)) { event.currentTarget.classList.remove('drag-over'); } },
 
-                setView(view) { this.currentView = view; if (view === 'dashboard') { this.$nextTick(() => this.initCharts()); } if (view !== 'projects') { this.expandedProjectId = null; this.expandedSprintId = null; } },
+                setView(view) { this.currentView = view; if (view === 'dashboard' && !this.isLoading) { this.$nextTick(() => this.initCharts()); } if (view !== 'projects') { this.expandedProjectId = null; this.expandedSprintId = null; } },
 
                 resetProjectForm() { this.projectForm = { id: null, name: '', description: '', priority: 'Medium', deadline: this.formatDateForInput(new Date(new Date().setDate(new Date().getDate() + 30))), notes: '', status: 'Not Started' }; this.editingProject = false; },
                 editProject(project) { this.projectForm = { ...project }; this.editingProject = true; this.showAddProjectModal = true; },
@@ -722,20 +738,21 @@
                     if (!this.projectForm.name || !this.projectForm.deadline) { alert('Project Name and Deadline are required.'); return; }
                     const nowISO = new Date().toISOString();
                     const projectData = { ...this.projectForm, modified: nowISO };
-                    // Remove client-side 'id' if it's null (for insertion)
-                    if (projectData.id === null) {
-                        delete projectData.id;
+                    let dbPayload = { ...projectData }; // Clone for DB operation
+                    if (dbPayload.id === null) {
+                        delete dbPayload.id; // Remove null ID for insert
                     }
 
                     try {
                         let resultData;
                         if (this.editingProject) {
-                            const { data, error } = await supabase
+                             // Use supabaseClient
+                            const { data, error } = await supabaseClient
                                 .from('projects')
-                                .update(projectData)
-                                .eq('id', projectData.id)
+                                .update(dbPayload)
+                                .eq('id', projectData.id) // Use original ID from form for matching
                                 .select()
-                                .single(); // Use single() if you expect one row back
+                                .single();
                             if (error) throw error;
                             resultData = data;
 
@@ -744,14 +761,13 @@
                                 this.projects.splice(index, 1, resultData);
                             }
                         } else {
-                            projectData.created = nowISO;
-                            // Supabase generates ID if not provided and column is set up for it (e.g., UUID default)
-                            // OR use client-side generateId() if preferred and DB column allows it.
-                             if (!projectData.id) projectData.id = generateId(); // Use client-side ID if DB doesn't auto-generate
+                            dbPayload.created = nowISO;
+                            if (!dbPayload.id) dbPayload.id = generateId(); // Add generated ID if needed
 
-                            const { data, error } = await supabase
+                             // Use supabaseClient
+                            const { data, error } = await supabaseClient
                                 .from('projects')
-                                .insert([projectData])
+                                .insert([dbPayload])
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -768,19 +784,18 @@
                 async deleteProject(projectId) {
                     const sprintIds = this.sprints.filter(s => s.projectId === projectId).map(s => s.id);
                     try {
-                        // 1. Delete tasks associated with the sprints of the project
                         if (sprintIds.length > 0) {
-                            const { error: taskError } = await supabase.from('tasks').delete().in('sprintId', sprintIds);
+                             // Use supabaseClient
+                            const { error: taskError } = await supabaseClient.from('tasks').delete().in('sprintId', sprintIds);
                             if (taskError) throw taskError;
                         }
-                        // 2. Delete sprints of the project
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('projectId', projectId);
+                         // Use supabaseClient
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('projectId', projectId);
                         if (sprintError) throw sprintError;
-                        // 3. Delete the project itself
-                        const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
+                         // Use supabaseClient
+                        const { error: projectError } = await supabaseClient.from('projects').delete().eq('id', projectId);
                         if (projectError) throw projectError;
 
-                        // Update local state after successful deletions
                         this.tasks = this.tasks.filter(t => !sprintIds.includes(t.sprintId));
                         this.sprints = this.sprints.filter(s => s.projectId !== projectId);
                         this.projects = this.projects.filter(p => p.id !== projectId);
@@ -809,17 +824,19 @@
                         endDate: this.sprintForm.endDate,
                         modified: nowISO
                     };
-                     if (sprintData.id === null) {
-                        delete sprintData.id;
+                    let dbPayload = { ...sprintData };
+                     if (dbPayload.id === null) {
+                        delete dbPayload.id;
                     }
 
                     try {
                          let resultData;
                         if (this.editingSprint) {
-                            const { data, error } = await supabase
+                             // Use supabaseClient
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
-                                .update(sprintData)
-                                .eq('id', sprintData.id)
+                                .update(dbPayload)
+                                .eq('id', sprintData.id) // Use original ID for match
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -830,12 +847,13 @@
                                 this.sprints.splice(index, 1, resultData);
                             }
                         } else {
-                            sprintData.created = nowISO;
-                            if (!sprintData.id) sprintData.id = generateId();
+                            dbPayload.created = nowISO;
+                            if (!dbPayload.id) dbPayload.id = generateId();
 
-                            const { data, error } = await supabase
+                            // Use supabaseClient
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
-                                .insert([sprintData])
+                                .insert([dbPayload])
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -851,14 +869,13 @@
                 confirmDeleteSprint(sprint) { this.confirmTitle = 'Delete Sprint'; this.confirmMessage = `Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`; this.confirmAction = () => this.deleteSprint(sprint.id); this.showConfirmModal = true; },
                 async deleteSprint(sprintId) {
                     try {
-                        // 1. Delete tasks in the sprint
-                        const { error: taskError } = await supabase.from('tasks').delete().eq('sprintId', sprintId);
+                         // Use supabaseClient
+                        const { error: taskError } = await supabaseClient.from('tasks').delete().eq('sprintId', sprintId);
                         if (taskError) throw taskError;
-                        // 2. Delete the sprint
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('id', sprintId);
+                         // Use supabaseClient
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('id', sprintId);
                         if (sprintError) throw sprintError;
 
-                        // Update local state
                         this.tasks = this.tasks.filter(t => t.sprintId !== sprintId);
                         this.sprints = this.sprints.filter(s => s.id !== sprintId);
                         if (this.expandedSprintId === sprintId) { this.expandedSprintId = null; }
@@ -884,19 +901,9 @@
                 },
                 resetTaskForm() {
                     this.taskForm = {
-                        id: null,
-                        selectedProjectIdForTask: '',
-                        sprintId: '',
-                        name: '',
-                        estimatedHours: 1,
-                        dependencies: '',
-                        assignedTo: '',
-                        status: 'Not Started',
-                        scheduledDay: '',
-                        scheduledTimeBlock: '',
-                        scheduledWeekId: null,
-                        prefilledProjectId: false,
-                        prefilledSprintId: false
+                        id: null, selectedProjectIdForTask: '', sprintId: '', name: '', estimatedHours: 1,
+                        dependencies: '', assignedTo: '', status: 'Not Started', scheduledDay: '',
+                        scheduledTimeBlock: '', scheduledWeekId: null, prefilledProjectId: false, prefilledSprintId: false
                     };
                     this.editingTask = false;
                 },
@@ -905,8 +912,8 @@
                     const sprint = this.sprints.find(s => s.id === task.sprintId);
                     this.taskForm = {
                         ...task,
-                        estimatedHours: Number(task.estimatedHours) || 1, // Ensure it's a number
-                        assignedTo: task.assignedTo || '', // Ensure empty string if null/undefined
+                        estimatedHours: Number(task.estimatedHours) || 1,
+                        assignedTo: task.assignedTo || '',
                         selectedProjectIdForTask: sprint ? sprint.projectId : '',
                         prefilledProjectId: !!sprint,
                         prefilledSprintId: !!task.sprintId
@@ -938,30 +945,27 @@
                     const isScheduling = !!this.taskForm.scheduledDay;
 
                     const taskDataToSave = {
-                        id: this.taskForm.id,
-                        sprintId: this.taskForm.sprintId,
-                        name: this.taskForm.name,
-                        estimatedHours: Number(this.taskForm.estimatedHours),
-                        dependencies: this.taskForm.dependencies || null,
-                        assignedTo: this.taskForm.assignedTo || null,
-                        status: this.taskForm.status,
+                        id: this.taskForm.id, sprintId: this.taskForm.sprintId, name: this.taskForm.name,
+                        estimatedHours: Number(this.taskForm.estimatedHours), dependencies: this.taskForm.dependencies || null,
+                        assignedTo: this.taskForm.assignedTo || null, status: this.taskForm.status,
                         scheduledDay: isScheduling ? this.taskForm.scheduledDay : null,
                         scheduledTimeBlock: isScheduling ? this.taskForm.scheduledTimeBlock : null,
                         scheduledWeekId: isScheduling ? this.getMonday(this.calendarDate).toISOString() : null,
                         modified: nowISO
                     };
-
-                     if (taskDataToSave.id === null) {
-                        delete taskDataToSave.id;
+                    let dbPayload = { ...taskDataToSave };
+                     if (dbPayload.id === null) {
+                        delete dbPayload.id;
                     }
 
                     try {
                         let resultData;
                         if (this.editingTask) {
-                             const { data, error } = await supabase
+                             // Use supabaseClient
+                             const { data, error } = await supabaseClient
                                 .from('tasks')
-                                .update(taskDataToSave)
-                                .eq('id', taskDataToSave.id)
+                                .update(dbPayload)
+                                .eq('id', taskDataToSave.id) // Use original ID for match
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -971,12 +975,13 @@
                                 this.tasks.splice(index, 1, {...resultData, estimatedHours: Number(resultData.estimatedHours) });
                             }
                         } else {
-                            taskDataToSave.created = nowISO;
-                             if (!taskDataToSave.id) taskDataToSave.id = generateId();
+                            dbPayload.created = nowISO;
+                             if (!dbPayload.id) dbPayload.id = generateId();
 
-                            const { data, error } = await supabase
+                             // Use supabaseClient
+                            const { data, error } = await supabaseClient
                                 .from('tasks')
-                                .insert([taskDataToSave])
+                                .insert([dbPayload])
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -994,25 +999,17 @@
                     const taskIndex = this.tasks.findIndex(t => t.id === taskId);
                     if (taskIndex !== -1) {
                         const nowISO = new Date().toISOString();
-                        const updatePayload = {
-                            scheduledDay: null,
-                            scheduledTimeBlock: null,
-                            scheduledWeekId: null,
-                            modified: nowISO
-                        };
+                        const updatePayload = { scheduledDay: null, scheduledTimeBlock: null, scheduledWeekId: null, modified: nowISO };
 
                         try {
-                            const { error } = await supabase
+                             // Use supabaseClient
+                            const { error } = await supabaseClient
                                 .from('tasks')
                                 .update(updatePayload)
                                 .eq('id', taskId);
                             if (error) throw error;
 
-                            // Update local state
-                            const updatedTask = {
-                                ...this.tasks[taskIndex],
-                                ...updatePayload
-                            };
+                            const updatedTask = { ...this.tasks[taskIndex], ...updatePayload };
                             this.tasks.splice(taskIndex, 1, updatedTask);
                             this.showAddTaskModal = false;
                             console.log(`Task ${taskId} removed from calendar in DB and local state.`);
@@ -1028,13 +1025,13 @@
                 confirmDeleteTask(task) { this.confirmTitle = 'Delete Task'; this.confirmMessage = `Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`; this.confirmAction = () => this.deleteTask(task.id); this.showConfirmModal = true; },
                 async deleteTask(taskId) {
                     try {
-                        const { error } = await supabase
+                         // Use supabaseClient
+                        const { error } = await supabaseClient
                             .from('tasks')
                             .delete()
                             .eq('id', taskId);
                         if (error) throw error;
 
-                        // Update local state
                         this.tasks = this.tasks.filter(t => t.id !== taskId);
                         console.log(`Task ${taskId} deleted.`);
 
@@ -1051,10 +1048,11 @@
                     if (this.teamMembers.some(m => m.name.toLowerCase() === this.teamMemberForm.name.toLowerCase())) { alert('A team member with this name already exists.'); return; }
 
                     const newMemberData = { ...this.teamMemberForm };
-                    if (!newMemberData.id) newMemberData.id = generateId(); // Use client-side ID
+                    if (!newMemberData.id) newMemberData.id = generateId();
 
                     try {
-                        const { data, error } = await supabase
+                         // Use supabaseClient
+                        const { data, error } = await supabaseClient
                             .from('team_members')
                             .insert([newMemberData])
                             .select()
@@ -1078,22 +1076,20 @@
                     this.confirmAction = async () => {
                         const memberName = member.name;
                         try {
-                            // 1. Unassign tasks associated with the member
-                            const { error: updateError } = await supabase
+                             // Use supabaseClient
+                            const { error: updateError } = await supabaseClient
                                 .from('tasks')
                                 .update({ assignedTo: null, modified: new Date().toISOString() })
                                 .eq('assignedTo', memberName);
-                            // We might not throw an error here if no tasks were assigned, proceed regardless.
                             if (updateError) console.warn("Error unassigning tasks (might be none):", updateError);
 
-                            // 2. Delete the team member
-                            const { error: deleteError } = await supabase
+                             // Use supabaseClient
+                            const { error: deleteError } = await supabaseClient
                                 .from('team_members')
                                 .delete()
                                 .eq('id', memberId);
                             if (deleteError) throw deleteError;
 
-                            // Update local state
                             this.tasks = this.tasks.map(task => task.assignedTo === memberName ? { ...task, assignedTo: null, modified: new Date().toISOString() } : task);
                             this.teamMembers = this.teamMembers.filter(m => m.id !== memberId);
                             if (this.selectedTeamMember === memberId) this.selectedTeamMember = null;
@@ -1111,52 +1107,12 @@
                 countCompletedTasksForMember(memberId) { const memberName = this.getTeamMemberNameById(memberId); return this.tasks.filter(t => t.assignedTo === memberName && t.status === 'Done').length; },
                 getTeamMemberNameById(id) { return this.teamMembers.find(m => m.id === id)?.name || ''; },
                 getTeamMemberColor(name, alpha = 0.2) { const defaultColor = document.documentElement.classList.contains('dark') ? `rgba(75, 85, 99, ${alpha})` : `rgba(209, 213, 219, ${alpha})`; if (!name) return defaultColor; const member = this.teamMembers.find(m => m.name === name); const hexColor = member ? member.color : '#9ca3af'; let r = 0, g = 0, b = 0; if (hexColor.length === 4) { r = parseInt(hexColor[1] + hexColor[1], 16); g = parseInt(hexColor[2] + hexColor[2], 16); b = parseInt(hexColor[3] + hexColor[3], 16); } else if (hexColor.length === 7) { r = parseInt(hexColor[1] + hexColor[2], 16); g = parseInt(hexColor[3] + hexColor[4], 16); b = parseInt(hexColor[5] + hexColor[6], 16); } else { return defaultColor; } return `rgba(${r}, ${g}, ${b}, ${alpha})`; },
-                 getTaskPriorityColor(task) {
-                    const priority = this.getTaskPriority(task);
-                    switch (priority) {
-                        case 'High': return '#ef4444';
-                        case 'Medium': return '#f59e0b';
-                        case 'Low': return '#10b981';
-                        default: return '#9ca3af';
-                    }
-                },
-                getContrastColor(bgColor) {
-                    if (!bgColor) return '#1f2937';
-                    const parseColor = (color) => {
-                        if (color.startsWith('rgba')) { const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/); return parts ? { r: parseInt(parts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
-                        } else if (color.startsWith('#')) { let hex = color.substring(1); if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]; if (hex.length === 6) { return { r: parseInt(hex.substring(0, 2), 16), g: parseInt(hex.substring(2, 4), 16), b: parseInt(hex.substring(4, 6), 16) }; } } return null;
-                    };
-                    const rgb = parseColor(bgColor); if (!rgb) return '#1f2937';
-                    const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
-                    return luminance > 0.5 ? '#1f2937' : '#ffffff';
-                },
+                 getTaskPriorityColor(task) { const priority = this.getTaskPriority(task); switch (priority) { case 'High': return '#ef4444'; case 'Medium': return '#f59e0b'; case 'Low': return '#10b981'; default: return '#9ca3af'; } },
+                getContrastColor(bgColor) { if (!bgColor) return '#1f2937'; const parseColor = (color) => { if (color.startsWith('rgba')) { const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/); return parts ? { r: parseInt(parts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null; } else if (color.startsWith('#')) { let hex = color.substring(1); if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]; if (hex.length === 6) { return { r: parseInt(hex.substring(0, 2), 16), g: parseInt(hex.substring(2, 4), 16), b: parseInt(hex.substring(4, 6), 16) }; } } return null; }; const rgb = parseColor(bgColor); if (!rgb) return '#1f2937'; const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255; return luminance > 0.5 ? '#1f2937' : '#ffffff'; },
 
-                get scheduledTasksForWeek() {
-                    const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
-                    return this.tasks.filter(task => {
-                        const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO;
-                        const memberMatch = this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember);
-                        return weekMatch && memberMatch;
-                    });
-                },
-                getTasksForDayAndTime(day, timeBlock) {
-                    const filteredTasks = this.scheduledTasksForWeek.filter(task => task.scheduledDay === day && task.scheduledTimeBlock === timeBlock);
-                    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
-                    const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
-                    return [...filteredTasks].sort((a, b) => {
-                        const priorityA = this.getTaskPriority(a); const priorityB = this.getTaskPriority(b); const priorityDiff = (priorityOrder[priorityA] ?? 99) - (priorityOrder[priorityB] ?? 99); if (priorityDiff !== 0) return priorityDiff;
-                        const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99); if (statusDiff !== 0) return statusDiff;
-                        return a.name.localeCompare(b.name);
-                    });
-                },
-                getHoursPerMemberForDayAndTime(day, timeBlock) {
-                    const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
-                    const tasksInBlock = this.tasks.filter(task => task.scheduledWeekId === mondayOfViewWeekISO && task.scheduledDay === day && task.scheduledTimeBlock === timeBlock);
-                    const hoursByMember = {};
-                    tasksInBlock.forEach(task => { const memberName = task.assignedTo || 'Unassigned'; const hours = Number(task.estimatedHours) || 0; if (hours > 0) { hoursByMember[memberName] = (hoursByMember[memberName] || 0) + hours; } });
-                    const result = Object.entries(hoursByMember).map(([name, hours]) => ({ name, hours })).filter(item => item.hours > 0).sort((a, b) => { if (a.name === 'Unassigned' && b.name !== 'Unassigned') return 1; if (a.name !== 'Unassigned' && b.name === 'Unassigned') return -1; return a.name.localeCompare(b.name); });
-                    return result;
-                },
+                get scheduledTasksForWeek() { const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString(); return this.tasks.filter(task => { const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO; const memberMatch = this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember); return weekMatch && memberMatch; }); },
+                getTasksForDayAndTime(day, timeBlock) { const filteredTasks = this.scheduledTasksForWeek.filter(task => task.scheduledDay === day && task.scheduledTimeBlock === timeBlock); const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 }; const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 }; return [...filteredTasks].sort((a, b) => { const priorityA = this.getTaskPriority(a); const priorityB = this.getTaskPriority(b); const priorityDiff = (priorityOrder[priorityA] ?? 99) - (priorityOrder[priorityB] ?? 99); if (priorityDiff !== 0) return priorityDiff; const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99); if (statusDiff !== 0) return statusDiff; return a.name.localeCompare(b.name); }); },
+                getHoursPerMemberForDayAndTime(day, timeBlock) { const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString(); const tasksInBlock = this.tasks.filter(task => task.scheduledWeekId === mondayOfViewWeekISO && task.scheduledDay === day && task.scheduledTimeBlock === timeBlock); const hoursByMember = {}; tasksInBlock.forEach(task => { const memberName = task.assignedTo || 'Unassigned'; const hours = Number(task.estimatedHours) || 0; if (hours > 0) { hoursByMember[memberName] = (hoursByMember[memberName] || 0) + hours; } }); const result = Object.entries(hoursByMember).map(([name, hours]) => ({ name, hours })).filter(item => item.hours > 0).sort((a, b) => { if (a.name === 'Unassigned' && b.name !== 'Unassigned') return 1; if (a.name !== 'Unassigned' && b.name === 'Unassigned') return -1; return a.name.localeCompare(b.name); }); return result; },
                 getTaskPriority(task) { const sprint = this.sprints.find(s => s.id === task.sprintId); if (!sprint) return null; const project = this.projects.find(p => p.id === sprint.projectId); return project ? project.priority : null; },
                 getProjectNameForTask(task) { const sprint = this.sprints.find(s => s.id === task.sprintId); if (!sprint) return 'Unknown Project'; const project = this.projects.find(p => p.id === sprint.projectId); return project ? project.name : 'Unknown Project'; },
                 getTotalHoursForDayAndTime(day, timeBlock) { return this.scheduledTasksForWeek.filter(task => task.scheduledDay === day && task.scheduledTimeBlock === timeBlock).reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0); },
@@ -1179,17 +1135,11 @@
                 isToday(date) { if (!date) return false; const today = new Date(); return date.getDate() === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear(); },
                 isSameDay(date1, date2) { if (!date1 || !date2) return false; return date1.getDate() === date2.getDate() && date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear(); },
                 isInCurrentDisplayedWeek(date) { if (!date) return false; const startOfWeek = this.getMonday(this.calendarDate); const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1)); const compareDate = new Date(date); compareDate.setHours(0, 0, 0, 0); startOfWeek.setHours(0, 0, 0, 0); endOfWeek.setHours(0, 0, 0, 0); return compareDate >= startOfWeek && compareDate <= endOfWeek; },
-                generateCalendarDays() {
-                    const year = this.datePickerDate.getFullYear(); const month = this.datePickerDate.getMonth(); const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); let startDayOfWeek = firstDayOfMonth.getDay(); startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1; const days = []; const daysInPrevMonth = new Date(year, month, 0).getDate();
-                    for (let i = startDayOfWeek - 1; i >= 0; i--) { days.push({ date: new Date(year, month - 1, daysInPrevMonth - i), dayOfMonth: daysInPrevMonth - i, isCurrentMonth: false, isToday: false, isInCurrentWeek: false }); }
-                    for (let i = 1; i <= daysInMonth; i++) { const currentDate = new Date(year, month, i); days.push({ date: currentDate, dayOfMonth: i, isCurrentMonth: true, isToday: this.isToday(currentDate), isInCurrentWeek: this.isInCurrentDisplayedWeek(currentDate) }); }
-                    const remainingCells = 42 - days.length;
-                    for (let i = 1; i <= remainingCells; i++) { days.push({ date: new Date(year, month + 1, i), dayOfMonth: i, isCurrentMonth: false, isToday: false, isInCurrentWeek: false }); } return days;
-                },
+                generateCalendarDays() { const year = this.datePickerDate.getFullYear(); const month = this.datePickerDate.getMonth(); const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); let startDayOfWeek = firstDayOfMonth.getDay(); startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1; const days = []; const daysInPrevMonth = new Date(year, month, 0).getDate(); for (let i = startDayOfWeek - 1; i >= 0; i--) { days.push({ date: new Date(year, month - 1, daysInPrevMonth - i), dayOfMonth: daysInPrevMonth - i, isCurrentMonth: false, isToday: false, isInCurrentWeek: false }); } for (let i = 1; i <= daysInMonth; i++) { const currentDate = new Date(year, month, i); days.push({ date: currentDate, dayOfMonth: i, isCurrentMonth: true, isToday: this.isToday(currentDate), isInCurrentWeek: this.isInCurrentDisplayedWeek(currentDate) }); } const remainingCells = 42 - days.length; for (let i = 1; i <= remainingCells; i++) { days.push({ date: new Date(year, month + 1, i), dayOfMonth: i, isCurrentMonth: false, isToday: false, isInCurrentWeek: false }); } return days; },
                 formatDatePickerMonthYear() { return this.datePickerDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); },
 
                 destroyCharts() { if (this.taskStatusChartInstance) { this.taskStatusChartInstance.destroy(); this.taskStatusChartInstance = null; } if (this.weeklyWorkloadChartInstance) { this.weeklyWorkloadChartInstance.destroy(); this.weeklyWorkloadChartInstance = null; } },
-                initCharts() { this.$nextTick(() => { this.destroyCharts(); this.initTaskStatusChart(); this.initWeeklyWorkloadChart(); }); },
+                initCharts() { if (this.isLoading) return; this.$nextTick(() => { this.destroyCharts(); this.initTaskStatusChart(); this.initWeeklyWorkloadChart(); }); },
                 initTaskStatusChart() { const ctx = document.getElementById('taskStatusChart')?.getContext('2d'); if (!ctx) return; const statuses = ['Not Started', 'In Progress', 'Blocked', 'Done']; const counts = statuses.map(status => this.countAllTasksByStatus(status)); const isDarkMode = document.documentElement.classList.contains('dark'); const textColor = isDarkMode ? '#e5e7eb' : '#374151'; this.taskStatusChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: statuses, datasets: [{ data: counts, backgroundColor: [isDarkMode ? 'rgba(107, 114, 128, 0.7)' : 'rgba(156, 163, 175, 0.8)', isDarkMode ? 'rgba(96, 165, 250, 0.7)' : 'rgba(59, 130, 246, 0.8)', isDarkMode ? 'rgba(248, 113, 113, 0.7)' : 'rgba(239, 68, 68, 0.8)', isDarkMode ? 'rgba(52, 211, 153, 0.7)' : 'rgba(16, 185, 129, 0.8)'], borderColor: isDarkMode ? '#1f2937' : '#ffffff', borderWidth: 2 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: textColor, padding: 15, boxWidth: 12, } }, tooltip: { callbacks: { label: function (context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += context.parsed; } const total = context.dataset.data.reduce((a, b) => a + b, 0); const percentage = total > 0 ? Math.round((context.parsed / total) * 100) : 0; label += ` (${percentage}%)`; return label; } } } } } }); },
                 initWeeklyWorkloadChart() {
                     const ctx = document.getElementById('weeklyWorkloadChart')?.getContext('2d'); if (!ctx) return;
@@ -1205,17 +1155,7 @@
                     if (this.weeklyWorkloadChartInstance) { this.weeklyWorkloadChartInstance.destroy(); this.weeklyWorkloadChartInstance = null; }
                     this.weeklyWorkloadChartInstance = new Chart(ctx, { type: 'bar', data: { labels: this.daysOfWeek.map(d => d.substring(0, 3)), datasets: [{ label: 'Est. Hours Scheduled', data: dailyHours, backgroundColor: barColor, borderRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor }, title: { display: true, text: 'Hours', color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function (context) { return ` ${context.parsed.y} hours`; } } } } } });
                 },
-                updateCharts() {
-                    if(this.isLoading) return; // Don't update charts if initial load is happening
-                    if (this.currentView === 'dashboard') {
-                         this.initTaskStatusChart();
-                         this.initWeeklyWorkloadChart();
-                    } else if (this.currentView === 'calendar') {
-                        if (document.getElementById('weeklyWorkloadChart')) {
-                           this.initWeeklyWorkloadChart();
-                        }
-                    }
-                },
+                updateCharts() { if (this.isLoading) return; if (this.currentView === 'dashboard') { this.initTaskStatusChart(); this.initWeeklyWorkloadChart(); } else if (this.currentView === 'calendar') { if (document.getElementById('weeklyWorkloadChart')) { this.initWeeklyWorkloadChart(); } } },
                 isTaskInCurrentWeek(task, mondayOfViewWeek) { if (!task.scheduledWeekId) { return false; } return task.scheduledWeekId === mondayOfViewWeek.toISOString(); },
                 formatDate(dateString) { if (!dateString) return 'N/A'; try { const date = new Date(dateString + 'T00:00:00'); if (isNaN(date)) return 'Invalid Date'; return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { console.error("Error formatting date:", dateString, e); return 'Invalid Date'; } },
                 formatDateForInput(date) { if (!date || !(date instanceof Date) || isNaN(date)) return ''; try { return date.toISOString().split('T')[0]; } catch (e) { console.error("Error formatting date for input:", date, e); return ''; } }
@@ -1225,4 +1165,3 @@
 
 </body>
 </html>
-```
