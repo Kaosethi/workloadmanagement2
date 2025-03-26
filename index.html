@@ -1,223 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tech Workload Manager</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.3/dist/cdn.min.js"></script>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script>
-      const supabaseUrl = 'https://qrzcujypjybpezlyondb.supabase.co';
-      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
-      const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-      function mapToDbProject(project) {
-        const data = {
-          name: project.name,
-          description: project.description,
-          priority: project.priority,
-          deadline: project.deadline,
-          notes: project.notes,
-          status: project.status,
-          modified_at: project.modified || new Date().toISOString()
-        };
-        if (!project.id) {
-            data.created_at = project.created || new Date().toISOString();
-        }
-        if (project.id) {
-            data.id = project.id;
-        }
-        return data;
-      }
-
-      function mapFromDbProject(dbProject) {
-        return {
-          id: dbProject.id,
-          name: dbProject.name,
-          description: dbProject.description,
-          priority: dbProject.priority,
-          deadline: dbProject.deadline,
-          notes: dbProject.notes,
-          status: dbProject.status,
-          created: dbProject.created_at,
-          modified: dbProject.modified_at
-        };
-      }
-
-       function mapToDbSprint(sprint) {
-         const data = {
-           project_id: sprint.projectId,
-           name: sprint.name,
-           start_date: sprint.startDate,
-           end_date: sprint.endDate,
-           modified_at: sprint.modified || new Date().toISOString()
-         };
-          if (!sprint.id) {
-            data.created_at = sprint.created || new Date().toISOString();
-          }
-          if (sprint.id) {
-            data.id = sprint.id;
-          }
-         return data;
-       }
-
-       function mapFromDbSprint(dbSprint) {
-         return {
-           id: dbSprint.id,
-           projectId: dbSprint.project_id,
-           name: dbSprint.name,
-           startDate: dbSprint.start_date,
-           endDate: dbSprint.end_date,
-           created: dbSprint.created_at,
-           modified: dbSprint.modified_at
-         };
-       }
-
-       function mapToDbTask(task) {
-         const assignedToValue = task.assignedTo === '' ? null : task.assignedTo;
-         const data = {
-           sprint_id: task.sprintId,
-           name: task.name,
-           estimated_hours: task.estimatedHours,
-           dependencies: task.dependencies,
-           assigned_to: assignedToValue,
-           status: task.status,
-           scheduled_day: task.scheduledDay || null,
-           scheduled_time_block: task.scheduledTimeBlock || null,
-           scheduled_week_id: task.scheduledWeekId || null,
-           modified_at: task.modified || new Date().toISOString()
-         };
-          if (!task.id) {
-            data.created_at = task.created || new Date().toISOString();
-          }
-         if (task.id) {
-             data.id = task.id;
-         }
-         return data;
-       }
-
-        function mapFromDbTask(dbTask) {
-         return {
-           id: dbTask.id,
-           sprintId: dbTask.sprint_id,
-           name: dbTask.name,
-           estimatedHours: dbTask.estimated_hours,
-           dependencies: dbTask.dependencies,
-           assignedTo: dbTask.assigned_to || '',
-           status: dbTask.status,
-           scheduledDay: dbTask.scheduled_day || '',
-           scheduledTimeBlock: dbTask.scheduled_time_block || '',
-           scheduledWeekId: dbTask.scheduled_week_id || null,
-           created: dbTask.created_at,
-           modified: dbTask.modified_at
-         };
-       }
-
-      function mapToDbTeamMember(member) {
-        const data = {
-          name: member.name,
-          role: member.role,
-          color: member.color
-        };
-        if (member.id) {
-            data.id = member.id;
-        }
-        return data;
-      }
-
-      function mapFromDbTeamMember(dbMember) {
-        return {
-          id: dbMember.id,
-          name: dbMember.name,
-          role: dbMember.role,
-          color: dbMember.color
-        };
-      }
-
-      async function fetchProjects() {
-        const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
-        if (error) { console.error('Projects error:', error); return []; }
-        return data.map(mapFromDbProject);
-      }
-
-      async function fetchTeamMembers() {
-        const { data, error } = await supabase.from('team_members').select('*').order('name');
-        if (error) { console.error('Team Members error:', error); return []; }
-        return data.map(mapFromDbTeamMember);
-      }
-
-      async function fetchSprints() {
-        const { data, error } = await supabase.from('sprints').select('*').order('start_date', { ascending: false });
-        if (error) { console.error('Sprints error:', error); return []; }
-        return data.map(mapFromDbSprint);
-      }
-
-      async function fetchTasks() {
-        const { data, error } = await supabase.from('tasks').select('*').order('created_at');
-        if (error) { console.error('Tasks error:', error); return []; }
-        return data.map(mapFromDbTask);
-      }
-    </script>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '#5D5CDE',
-                        'primary-light': '#8180E7',
-                        'primary-dark': '#4847B3',
-                    }
-                }
-            },
-            darkMode: 'class'
-        }
-    </script>
-    <style>
-        [x-cloak] { display: none !important; }
-        .status-not-started { border-left: 4px solid #9ca3af; }
-        .status-in-progress { border-left: 4px solid #3b82f6; }
-        .status-blocked { border-left: 4px solid #ef4444; }
-        .status-done { border-left: 4px solid #10b981; }
-        .calendar-task { border-radius: 4px; padding: 4px 8px; margin-bottom: 4px; font-size: 0.75rem; cursor: grab; transition: all 0.2s; position: relative; overflow: hidden; border-left-width: 4px; }
-        .calendar-task:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); filter: brightness(1.1); }
-        .calendar-task.dragging { opacity: 0.5; cursor: grabbing; }
-        .time-block { min-height: 140px; transition: background-color 0.2s; position: relative; cursor: pointer; }
-        .time-block:hover { background-color: rgba(93, 92, 222, 0.05); }
-        .dark .time-block:hover { background-color: rgba(93, 92, 222, 0.1); }
-        .time-block.drag-over { background-color: rgba(93, 92, 222, 0.1); }
-        .dark .time-block.drag-over { background-color: rgba(93, 92, 222, 0.2); }
-        .time-block-hours { position: absolute; bottom: 4px; right: 4px; font-size: 0.65rem; font-weight: 500; color: #6b7280; padding: 2px 4px; background-color: rgba(255, 255, 255, 0.7); border-radius: 4px; pointer-events: none; }
-        .dark .time-block-hours { color: #9ca3af; background-color: rgba(55, 65, 81, 0.7); }
-        .add-task-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; color: #a0aec0; font-size: 0.75rem; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; background-color: rgba(255, 255, 255, 0.8); padding: 2px 6px; border-radius: 4px; }
-        .dark .add-task-indicator { color: #718096; background-color: rgba(55, 65, 81, 0.8); }
-        .time-block:hover .add-task-indicator { opacity: 1; }
-        .add-task-indicator svg { width: 0.75rem; height: 0.75rem; margin-right: 4px; }
-        .dark .calendar-task { box-shadow: 0 1px 3px rgba(255,255,255,0.05); }
-        .dark .calendar-task:hover { box-shadow: 0 2px 4px rgba(255,255,255,0.1); filter: brightness(1.2); }
-        .chart-container { height: 300px; max-width: 100%; }
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.7); }
-        .dark ::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.3); }
-        .dark ::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.5); }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideDown { from { max-height: 0; opacity: 0; transform: translateY(-10px); } to { max-height: 1000px; opacity: 1; transform: translateY(0); } }
-        @keyframes slideUp { from { max-height: 1000px; opacity: 1; transform: translateY(0); } to { max-height: 0; opacity: 0; transform: translateY(-10px); } }
-        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
-        .animate-slide-down { animation: slideDown 0.4s ease-in-out; overflow: hidden; }
-        .animate-slide-up { animation: slideUp 0.3s ease-in-out; overflow: hidden; }
-        .hover-card-effect { transition: all 0.2s ease-in-out; }
-        .hover-card-effect:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        .dark .hover-card-effect:hover { box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1); }
-        .sprint-item { transition: background-color 0.2s; }
-        .sprint-item:hover { background-color: #f9fafb; }
-        .dark .sprint-item:hover { background-color: #1f2937; }
+```html
+ }
         .task-item-in-sprint { transition: background-color 0.2s; }
         .task-item-in-sprint:hover { background-color: #f3f4f6; }
         .dark .task-item-in-sprint:hover { background-color: #374151; }
@@ -230,7 +12,7 @@
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
-    <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen">
+    <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen" x-cloak>
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
@@ -265,6 +47,20 @@
         </header>
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Loading Indicator -->
+            <div x-show="isLoading" class="text-center py-10">
+                <svg class="animate-spin h-8 w-8 text-primary mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Loading data...</p>
+            </div>
+
+            <div x-show="!isLoading">
+```
+
+```html
+            <!-- Projects & Sprints View -->
             <div x-show="currentView === 'projects'" class="animate-fade-in">
                 <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold">Projects & Sprints</h2>
@@ -276,6 +72,7 @@
                     </button>
                 </div>
 
+                <!-- Project Status Tabs -->
                 <div class="mb-6 border-b border-gray-200 dark:border-gray-700 flex space-x-4">
                     <button @click="selectedProjectStatusTab = 'In Progress'"
                             class="tab-button"
@@ -294,12 +91,14 @@
                     </button>
                 </div>
 
+                <!-- Project List -->
                 <div class="space-y-6">
                     <template x-for="project in projects.filter(p => p.status === selectedProjectStatusTab)" :key="project.id">
                         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover-card-effect flex flex-col"
                              :class="{'border-l-4 border-red-500': project.priority === 'High',
                                       'border-l-4 border-yellow-500': project.priority === 'Medium',
                                       'border-l-4 border-green-500': project.priority === 'Low'}">
+                            <!-- Project Header -->
                             <div class="p-4">
                                 <div class="flex justify-between items-start mb-2">
                                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100" x-text="project.name"></h3>
@@ -319,10 +118,12 @@
                                 </div>
                                 <div class="text-xs mb-2" x-show="project.notes"><span class="font-medium text-gray-700 dark:text-gray-300">Notes:</span><p class="mt-1 text-gray-600 dark:text-gray-400 break-words" x-text="project.notes"></p></div>
                             </div>
+                            <!-- Sprints Expander -->
                             <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150" @click="expandedProjectId = (expandedProjectId === project.id ? null : project.id)">
                                 <span class="text-sm font-medium text-primary dark:text-primary-light">Sprints (<span x-text="getSprintsForProject(project.id).length"></span>)</span>
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform" :class="{'rotate-180': expandedProjectId === project.id}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                             </div>
+                            <!-- Sprint List (Expanded) -->
                             <div x-show="expandedProjectId === project.id" x-transition:enter="animate-slide-down" x-transition:leave="animate-slide-up" class="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 p-4 space-y-3">
                                 <div class="flex justify-between items-center mb-2">
                                     <h4 class="text-md font-semibold text-primary-light">Sprints for <span x-text="project.name"></span></h4>
@@ -333,28 +134,33 @@
                                 <div x-show="getSprintsForProject(project.id).length === 0" class="text-center text-sm text-gray-500 dark:text-gray-400 py-4">No sprints added to this project yet.</div>
                                 <template x-for="sprint in getSprintsForProject(project.id)" :key="sprint.id">
                                     <div class="sprint-item bg-white dark:bg-gray-800 rounded shadow-sm border dark:border-gray-600">
+                                        <!-- Sprint Header -->
                                         <div class="flex justify-between items-center p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700" @click="expandedSprintId = (expandedSprintId === sprint.id ? null : sprint.id)">
                                             <div>
                                                 <h5 class="font-medium text-sm text-gray-900 dark:text-gray-100" x-text="sprint.name"></h5>
                                                 <div class="text-xs text-gray-600 dark:text-gray-400 mt-1"><span x-text="`${formatDate(sprint.startDate)} to ${formatDate(sprint.endDate)}`"></span></div>
                                             </div>
                                             <div class="flex items-center space-x-2">
+                                                <!-- Task Status Counts -->
                                                 <div class="hidden sm:flex flex-wrap gap-1 text-[10px] flex-shrink-0 mr-2">
-                                                    <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-600 rounded text-gray-700 dark:text-gray-200" x-text="`${countTasksByStatus(sprint.id, 'Not Started')} NS`"></span>
-                                                    <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'In Progress')} IP`"></span>
-                                                    <span class="px-1.5 py-0.5 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Blocked')} B`"></span>
-                                                    <span class="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Done')} D`"></span>
+                                                    <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-600 rounded text-gray-700 dark:text-gray-200" x-text="`${countTasksByStatus(sprint.id, 'Not Started')} NS`" title="Not Started"></span>
+                                                    <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'In Progress')} IP`" title="In Progress"></span>
+                                                    <span class="px-1.5 py-0.5 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Blocked')} B`" title="Blocked"></span>
+                                                    <span class="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Done')} D`" title="Done"></span>
                                                 </div>
-                                                <div class="w-16 mr-2 hidden md:block">
+                                                <!-- Sprint Progress Bar -->
+                                                <div class="w-16 mr-2 hidden md:block" :title="`Sprint Progress: ${calculateSprintProgress(sprint.id)}%`">
                                                     <div class="flex justify-between text-xs mb-0.5 text-gray-700 dark:text-gray-300"><span class="sr-only">Progress</span> <span x-text="`${calculateSprintProgress(sprint.id)}%`"></span></div>
                                                     <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full transition-width duration-500" :style="`width: ${calculateSprintProgress(sprint.id)}%`"></div></div>
                                                 </div>
+                                                <!-- Sprint Actions -->
                                                 <button @click.stop="editSprint(sprint)" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Edit Sprint"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /> </svg></button>
                                                 <button @click.stop="confirmDeleteSprint(sprint)" class="text-gray-500 dark:text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Delete Sprint"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /> </svg></button>
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform ml-2 flex-shrink-0" :class="{'rotate-180': expandedSprintId === sprint.id}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                                             </div>
                                         </div>
 
+                                        <!-- Task List (Expanded Sprint) -->
                                         <div x-show="expandedSprintId === sprint.id" x-transition:enter="animate-slide-down" x-transition:leave="animate-slide-up" class="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-600 p-3 space-y-2">
                                             <div class="flex justify-between items-center mb-2">
                                                  <h6 class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Tasks (<span x-text="getTasksForSprint(sprint.id).length"></span>)</h6>
@@ -389,6 +195,7 @@
                             </div>
                         </div>
                     </template>
+                     <!-- Empty State for Project Tab -->
                      <div x-show="projects.filter(p => p.status === selectedProjectStatusTab).length === 0" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2" x-text="`No projects are currently '${selectedProjectStatusTab}'`"></h3>
@@ -397,11 +204,15 @@
                     </div>
                 </div>
             </div>
+```
 
+```html
+            <!-- Calendar View -->
             <div x-show="currentView === 'calendar'" class="animate-fade-in">
                 <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold">Weekly Calendar</h2>
                     <div class="flex flex-wrap items-center space-x-4 gap-y-2">
+                        <!-- Week Navigation -->
                         <div class="flex items-center space-x-2 bg-white dark:bg-gray-800 p-1 rounded-md shadow-sm">
                             <button @click="previousWeek()" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Previous Week"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
                             <button @click="openDatePicker()"
@@ -414,6 +225,7 @@
                         <button @click="showManageTeamMembersModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg> Manage Team</button>
                     </div>
                 </div>
+                <!-- Team Member Filter -->
                 <div class="mb-4 overflow-x-auto pb-2">
                     <div class="flex space-x-2">
                         <button @click="selectedTeamMember = null" class="px-3 py-1 text-sm rounded-full transition-colors flex-shrink-0" :class="selectedTeamMember === null ? 'bg-primary text-white font-medium' : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'">All Team</button>
@@ -422,24 +234,51 @@
                         </template>
                     </div>
                 </div>
+                <!-- Calendar Grid -->
                 <div class="overflow-x-auto">
                     <div class="min-w-[800px] grid grid-cols-6 gap-2 mb-8">
+                        <!-- Time Labels Column -->
                         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 flex flex-col">
-                            <div class="h-12"></div>
-                            <div class="flex-grow flex flex-col justify-around py-2"><div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Morning</div><div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Afternoon</div></div>
-                            <div class="h-8"></div>
+                            <div class="h-12"></div> <!-- Spacer for day header -->
+                            <div class="flex-grow flex flex-col justify-around py-2">
+                                <div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Morning</div>
+                                <div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Afternoon</div>
+                            </div>
+                            <div class="h-8"></div> <!-- Spacer for day total -->
                         </div>
+                        <!-- Day Columns -->
                         <template x-for="(day, index) in daysOfWeek" :key="index">
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden flex flex-col">
-                                <div class="bg-gray-50 dark:bg-gray-700 p-2 text-center border-b dark:border-gray-700 h-12 flex flex-col justify-center"><div class="font-semibold text-sm text-gray-800 dark:text-gray-200" x-text="day"></div><div class="text-xs text-gray-500 dark:text-gray-400" x-text="formatDayDate(index)"></div></div>
+                                <!-- Day Header -->
+                                <div class="bg-gray-50 dark:bg-gray-700 p-2 text-center border-b dark:border-gray-700 h-12 flex flex-col justify-center">
+                                    <div class="font-semibold text-sm text-gray-800 dark:text-gray-200" x-text="day"></div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400" x-text="formatDayDate(index)"></div>
+                                </div>
+                                <!-- Time Blocks -->
                                 <div class="flex-grow flex flex-col">
-                                    <div class="flex-1 p-2 border-b dark:border-gray-700 overflow-y-auto time-block" :id="`block-${day}-Morning`" @dragover.prevent="handleDragOver($event)" @dragleave.prevent="handleDragLeave($event)" @drop.prevent="handleDrop($event, day, 'Morning')" @click="openAddTaskModalForSlot(day, 'Morning', $event)">
+                                    <!-- Morning Block -->
+                                    <div class="flex-1 p-2 border-b dark:border-gray-700 overflow-y-auto time-block"
+                                         :id="`block-${day}-Morning`"
+                                         @dragover.prevent="handleDragOver($event)"
+                                         @dragleave.prevent="handleDragLeave($event)"
+                                         @drop.prevent="handleDrop($event, day, 'Morning')"
+                                         @click="openAddTaskModalForSlot(day, 'Morning', $event)">
                                          <div class="add-task-indicator"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Add Task</div>
                                         <template x-for="task in getTasksForDayAndTime(day, 'Morning')" :key="task.id">
-                                            <div class="calendar-task text-gray-900 dark:text-gray-100" :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }" :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }" draggable="true" @dragstart="handleDragStart($event, task)" @dragend="handleDragEnd($event)" @click.stop="editTask(task)" :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
-                                                <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
+                                            <div class="calendar-task text-gray-900 dark:text-gray-100"
+                                                 :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }"
+                                                 :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }"
+                                                 draggable="true"
+                                                 @dragstart="handleDragStart($event, task)"
+                                                 @dragend="handleDragEnd($event)"
+                                                 @click.stop="editTask(task)"
+                                                 :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
+                                                <div class="font-medium text-xs truncate" x-text="task.name"></div>
+                                                <div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div>
+                                                <div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
                                             </div>
                                         </template>
+                                        <!-- Hours per Member Indicator -->
                                         <div class="absolute bottom-1 right-1 flex flex-col items-end space-y-0.5 z-10">
                                             <template x-for="memberHours in getHoursPerMemberForDayAndTime(day, 'Morning')" :key="memberHours.name">
                                                 <span class="text-[0.6rem] font-medium px-1 py-0.5 rounded whitespace-nowrap"
@@ -453,13 +292,29 @@
                                             </template>
                                         </div>
                                     </div>
-                                    <div class="flex-1 p-2 overflow-y-auto time-block" :id="`block-${day}-Afternoon`" @dragover.prevent="handleDragOver($event)" @dragleave.prevent="handleDragLeave($event)" @drop.prevent="handleDrop($event, day, 'Afternoon')" @click="openAddTaskModalForSlot(day, 'Afternoon', $event)">
+                                    <!-- Afternoon Block -->
+                                    <div class="flex-1 p-2 overflow-y-auto time-block"
+                                         :id="`block-${day}-Afternoon`"
+                                         @dragover.prevent="handleDragOver($event)"
+                                         @dragleave.prevent="handleDragLeave($event)"
+                                         @drop.prevent="handleDrop($event, day, 'Afternoon')"
+                                         @click="openAddTaskModalForSlot(day, 'Afternoon', $event)">
                                          <div class="add-task-indicator"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Add Task</div>
                                         <template x-for="task in getTasksForDayAndTime(day, 'Afternoon')" :key="task.id">
-                                             <div class="calendar-task text-gray-900 dark:text-gray-100" :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }" :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }" draggable="true" @dragstart="handleDragStart($event, task)" @dragend="handleDragEnd($event)" @click.stop="editTask(task)" :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
-                                                <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
+                                             <div class="calendar-task text-gray-900 dark:text-gray-100"
+                                                  :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }"
+                                                  :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }"
+                                                  draggable="true"
+                                                  @dragstart="handleDragStart($event, task)"
+                                                  @dragend="handleDragEnd($event)"
+                                                  @click.stop="editTask(task)"
+                                                  :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
+                                                <div class="font-medium text-xs truncate" x-text="task.name"></div>
+                                                <div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div>
+                                                <div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
                                             </div>
                                         </template>
+                                        <!-- Hours per Member Indicator -->
                                         <div class="absolute bottom-1 right-1 flex flex-col items-end space-y-0.5 z-10">
                                             <template x-for="memberHours in getHoursPerMemberForDayAndTime(day, 'Afternoon')" :key="memberHours.name">
                                                 <span class="text-[0.6rem] font-medium px-1 py-0.5 rounded whitespace-nowrap"
@@ -474,34 +329,87 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="p-2 bg-gray-50 dark:bg-gray-700 text-xs text-center border-t dark:border-gray-700 h-8 flex items-center justify-center text-gray-700 dark:text-gray-300"><span class="font-medium" x-text="getTotalHoursForDay(day) + 'h'"></span></div>
+                                <!-- Day Total -->
+                                <div class="p-2 bg-gray-50 dark:bg-gray-700 text-xs text-center border-t dark:border-gray-700 h-8 flex items-center justify-center text-gray-700 dark:text-gray-300">
+                                    <span class="font-medium" x-text="getTotalHoursForDay(day) + 'h'"></span>
+                                </div>
                             </div>
                         </template>
                     </div>
                 </div>
+                 <!-- Weekly Summary (Calendar View Only) -->
                  <div class="mt-12 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
                     <h3 class="text-lg font-semibold mb-4">Weekly Summary (<span x-text="selectedTeamMember ? getTeamMemberNameById(selectedTeamMember) : 'All Team'"></span>)</h3>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Total Hours Scheduled</h4><p class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="getTotalWeeklyHours() + 'h'"></p></div>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Status</h4><div class="flex flex-wrap gap-2 text-xs"><span class="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded-full text-gray-800 dark:text-gray-100" x-text="`${countWeeklyTasksByStatus('Not Started')} Not Started`"></span><span class="px-2 py-1 bg-blue-200 dark:bg-blue-900 rounded-full text-blue-800 dark:text-blue-100" x-text="`${countWeeklyTasksByStatus('In Progress')} In Progress`"></span><span class="px-2 py-1 bg-red-200 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByStatus('Blocked')} Blocked`"></span><span class="px-2 py-1 bg-green-200 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByStatus('Done')} Done`"></span></div></div>
-                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Project Priority</h4><div class="flex flex-wrap gap-2 text-xs"><span class="px-2 py-1 bg-red-100 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByPriority('High')} High`"></span><span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 rounded-full text-yellow-800 dark:text-yellow-100" x-text="`${countWeeklyTasksByPriority('Medium')} Medium`"></span><span class="px-2 py-1 bg-green-100 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByPriority('Low')} Low`"></span></div></div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Total Hours Scheduled</h4>
+                            <p class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="getTotalWeeklyHours() + 'h'"></p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Status</h4>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded-full text-gray-800 dark:text-gray-100" x-text="`${countWeeklyTasksByStatus('Not Started')} Not Started`"></span>
+                                <span class="px-2 py-1 bg-blue-200 dark:bg-blue-900 rounded-full text-blue-800 dark:text-blue-100" x-text="`${countWeeklyTasksByStatus('In Progress')} In Progress`"></span>
+                                <span class="px-2 py-1 bg-red-200 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByStatus('Blocked')} Blocked`"></span>
+                                <span class="px-2 py-1 bg-green-200 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByStatus('Done')} Done`"></span>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Project Priority</h4>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <span class="px-2 py-1 bg-red-100 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByPriority('High')} High`"></span>
+                                <span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 rounded-full text-yellow-800 dark:text-yellow-100" x-text="`${countWeeklyTasksByPriority('Medium')} Medium`"></span>
+                                <span class="px-2 py-1 bg-green-100 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByPriority('Low')} Low`"></span>
+                            </div>
+                        </div>
                     </div>
+                    <!-- Weekly Workload Chart (Moved from Dashboard to Calendar Summary) -->
+                     <div class="mt-6 bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                         <h4 class="text-md font-semibold mb-4">Weekly Scheduled Workload (<span x-text="selectedTeamMember ? getTeamMemberNameById(selectedTeamMember) : 'All Team'"></span>)</h4>
+                         <div class="chart-container"><canvas id="weeklyWorkloadChart"></canvas></div>
+                     </div>
                 </div>
             </div>
+```
 
+```html
+            <!-- Dashboard View -->
             <div x-show="currentView === 'dashboard'" class="animate-fade-in">
+                 <h2 class="text-2xl font-bold mb-6">Dashboard</h2>
+                 <!-- Stats Cards -->
                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Projects</h3><p class="text-3xl font-bold" x-text="projects.length"></p></div>
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Active Sprints</h3><p class="text-3xl font-bold" x-text="countActiveSprints()"></p></div>
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks In Progress</h3><p class="text-3xl font-bold" x-text="countAllTasksByStatus('In Progress')"></p></div>
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Completed (All)</h3><p class="text-3xl font-bold" x-text="countAllTasksByStatus('Done')"></p></div>
                 </div>
+                <!-- Charts -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-lg font-semibold mb-4">Task Status Distribution (All Tasks)</h3><div class="chart-container"><canvas id="taskStatusChart"></canvas></div></div>
-                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-lg font-semibold mb-4">Weekly Scheduled Workload (All Team)</h3><div class="chart-container"><canvas id="weeklyWorkloadChart"></canvas></div></div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                        <h3 class="text-lg font-semibold mb-4">Task Status Distribution (All Tasks)</h3>
+                        <div class="chart-container"><canvas id="taskStatusChart"></canvas></div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                        <h3 class="text-lg font-semibold mb-4">Overall Project Progress</h3>
+                        <div class="space-y-3 pt-2">
+                            <template x-for="project in projects.filter(p => p.status !== 'Done').sort((a,b) => new Date(a.deadline) - new Date(b.deadline))" :key="project.id">
+                                <div :title="`Project: ${project.name}\nDeadline: ${formatDate(project.deadline)}`">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="font-medium text-gray-700 dark:text-gray-300 truncate pr-2" x-text="project.name"></span>
+                                        <span class="text-gray-500 dark:text-gray-400" x-text="`${calculateProjectProgress(project.id)}%`"></span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                                        <div class="bg-primary h-2.5 rounded-full transition-width duration-500" :style="`width: ${calculateProjectProgress(project.id)}%`"></div>
+                                    </div>
+                                </div>
+                            </template>
+                            <p x-show="projects.filter(p => p.status !== 'Done').length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No active projects to display progress for.</p>
+                        </div>
+                    </div>
                 </div>
+                <!-- Project Progress Table -->
                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6 overflow-hidden">
-                    <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Project Progress</h3></div>
+                    <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Project Overview</h3></div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full">
                             <thead>
@@ -513,12 +421,19 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                                <template x-for="project in projects" :key="project.id">
+                                <template x-for="project in projects.sort((a,b) => new Date(a.deadline) - new Date(b.deadline))" :key="project.id">
                                     <tr>
                                         <td class="py-3 px-4 text-sm font-medium" x-text="project.name"></td>
                                         <td class="py-3 px-4 text-sm" x-text="formatDate(project.deadline)"></td>
                                         <td class="py-3 px-4 text-sm"><span class="inline-flex text-xs px-2 py-1 rounded-full font-medium" :class="{ 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100': project.status === 'Not Started', 'bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-100': project.status === 'In Progress', 'bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-100': project.status === 'Done' }" x-text="project.status"></span></td>
-                                        <td class="py-3 px-4 text-sm align-middle"><div class="flex items-center"><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2"><div class="bg-primary h-2 rounded-full transition-width duration-500" :style="`width: ${calculateProjectProgress(project.id)}%`"></div></div><span class="text-xs w-8 text-right" x-text="`${calculateProjectProgress(project.id)}%`"></span></div></td>
+                                        <td class="py-3 px-4 text-sm align-middle">
+                                            <div class="flex items-center">
+                                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
+                                                    <div class="bg-primary h-2 rounded-full transition-width duration-500" :style="`width: ${calculateProjectProgress(project.id)}%`"></div>
+                                                </div>
+                                                <span class="text-xs w-8 text-right" x-text="`${calculateProjectProgress(project.id)}%`"></span>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </template>
                                 <tr x-show="projects.length === 0"><td colspan="4" class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">No projects available</td></tr>
@@ -526,8 +441,9 @@
                         </table>
                     </div>
                 </div>
+                 <!-- Team Workload Table -->
                  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                     <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Team Workload</h3></div>
+                     <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Team Workload Summary</h3></div>
                     <div class="overflow-x-auto" x-show="teamMembers.length > 0">
                         <table class="min-w-full">
                             <thead>
@@ -550,6 +466,7 @@
                             </tbody>
                         </table>
                     </div>
+                    <!-- Empty State for Team Workload -->
                     <div class="text-center py-8" x-show="teamMembers.length === 0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                         <p class="text-gray-500 dark:text-gray-400 mb-4">No team members added yet</p>
@@ -557,17 +474,23 @@
                     </div>
                 </div>
             </div>
+            </div> <!-- End of x-show="!isLoading" -->
         </main>
 
         <footer class="bg-white dark:bg-gray-800 shadow-inner py-4 mt-8">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 dark:text-gray-400">
                     <div>Tech Workload Manager © <span x-text="new Date().getFullYear()"></span></div>
-                    <div class="mt-2 md:mt-0">Version 1.3.0 (DB Integrated)</div>
+                    <div class="mt-2 md:mt-0">Version 1.3.1 (Refactored)</div>
                 </div>
             </div>
         </footer>
+```
 
+```html
+        <!-- Modals -->
+
+        <!-- Add/Edit Project Modal -->
         <div x-show="showAddProjectModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                 <div x-show="showAddProjectModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddProjectModal = false"></div>
@@ -578,16 +501,18 @@
             </div>
         </div>
 
+        <!-- Add/Edit Sprint Modal -->
         <div x-show="showAddSprintModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showAddSprintModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddSprintModal = false"></div>
                 <div x-show="showAddSprintModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
                     <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingSprint ? 'Edit Sprint' : 'Add New Sprint'"></h2><button @click="showAddSprintModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-                    <form @submit.prevent="saveSprint()"><div class="mb-4"><label for="sprintProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><input type="text" readonly :value="getProjectNameById(sprintForm.projectId)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-base cursor-not-allowed"><input type="hidden" id="sprintProject" x-model="sprintForm.projectId"><p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Sprint belongs to this project. Cannot be changed.</p></div><div class="mb-4"><label for="sprintName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint Name</label><input type="text" id="sprintName" x-model="sprintForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div class="grid grid-cols-2 gap-4 mb-4"><div><label for="sprintStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input type="date" id="sprintStartDate" x-model="sprintForm.startDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="sprintEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input type="date" id="sprintEndDate" x-model="sprintForm.endDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div></div><p x-show="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="text-red-500 text-sm mb-4">End date must be after start date.</p><div class="flex justify-end space-x-3 mt-6"><button type="button" @click="showAddSprintModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button><button type="submit" :disabled="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"><span x-text="editingSprint ? 'Update Sprint' : 'Add Sprint'"></span></button></div></form>
+                    <form @submit.prevent="saveSprint()"><div class="mb-4"><label for="sprintProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><input type="text" readonly :value="getProjectNameById(sprintForm.projectId)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-base cursor-not-allowed"><input type="hidden" id="sprintProject" x-model="sprintForm.projectId"><p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Sprint belongs to this project. Cannot be changed.</p></div><div class="mb-4"><label for="sprintName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint Name</label><input type="text" id="sprintName" x-model="sprintForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div class="grid grid-cols-2 gap-4 mb-4"><div><label for="sprintStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input type="date" id="sprintStartDate" x-model="sprintForm.startDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="sprintEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input type="date" id="sprintEndDate" x-model="sprintForm.endDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div></div><p x-show="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="text-red-500 text-sm mb-4">End date must be on or after start date.</p><div class="flex justify-end space-x-3 mt-6"><button type="button" @click="showAddSprintModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button><button type="submit" :disabled="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"><span x-text="editingSprint ? 'Update Sprint' : 'Add Sprint'"></span></button></div></form>
                 </div>
             </div>
         </div>
 
+        <!-- Add/Edit Task Modal -->
         <div x-show="showAddTaskModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
             <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showAddTaskModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddTaskModal = false"></div>
@@ -595,12 +520,11 @@
                     <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingTask ? 'Edit Task' : 'Add New Task'"></h2><button @click="showAddTaskModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
                     <form @submit.prevent="saveTask()">
                         <div class="mb-4"><label for="taskProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><select id="taskProject" x-model="taskForm.selectedProjectIdForTask" @change="taskForm.sprintId = ''" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" :disabled="taskForm.prefilledProjectId"><option value="" disabled>-- Select a Project --</option><template x-for="project in projects" :key="project.id"><option :value="project.id" x-text="project.name"></option></template></select></div>
-                        <div class="mb-4"><label for="taskSprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label><select id="taskSprint" x-model="taskForm.sprintId" required :disabled="!taskForm.selectedProjectIdForTask || getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0 || taskForm.prefilledSprintId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline
--none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="" disabled>-- Select a Sprint --</option><template x-for="sprint in getSprintsForProject(taskForm.selectedProjectIdForTask)" :key="sprint.id"><option :value="sprint.id" x-text="sprint.name"></option></template></select><p x-show="taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No sprints found for the selected project. Add a sprint first.</p></div>
+                        <div class="mb-4"><label for="taskSprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label><select id="taskSprint" x-model="taskForm.sprintId" required :disabled="!taskForm.selectedProjectIdForTask || getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0 || taskForm.prefilledSprintId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="" disabled>-- Select a Sprint --</option><template x-for="sprint in getSprintsForProject(taskForm.selectedProjectIdForTask)" :key="sprint.id"><option :value="sprint.id" x-text="sprint.name"></option></template></select><p x-show="taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No sprints found for the selected project. Add a sprint first.</p></div>
                         <div class="mb-4"><label for="taskName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label><input type="text" id="taskName" x-model="taskForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"><div><label for="taskEstimatedHours" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Hours</label><input type="number" id="taskEstimatedHours" x-model.number="taskForm.estimatedHours" min="0.5" step="0.5" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="taskStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="taskStatus" x-model="taskForm.status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="Not Started">Not Started</option> <option value="In Progress">In Progress</option> <option value="Blocked">Blocked</option> <option value="Done">Done</option></select></div><div><label for="taskAssignedTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To</label><select id="taskAssignedTo" x-model="taskForm.assignedTo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Unassigned</option><template x-for="member in teamMembers" :key="member.id"><option :value="member.name" x-text="member.name"></option></template></select></div></div>
                         <div class="mb-4"><label for="taskDependencies" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dependencies (Optional)</label><input type="text" id="taskDependencies" x-model="taskForm.dependencies" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" placeholder="e.g. 'Task A, Task B'"></div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label for="taskScheduledDay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scheduled Day (Optional)</label><select id="taskScheduledDay" x-model="taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Not scheduled</option><template x-for="day in daysOfWeek" :key="day"> <option :value="day" x-text="day"></option> </template></select></div><div><label for="taskScheduledTimeBlock" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Block (Optional)</label><select id="taskScheduledTimeBlock" x-model="taskForm.scheduledTimeBlock" :disabled="!taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="">Not scheduled</option> <option value="Morning">Morning</option> <option value="Afternoon">Afternoon</option></select></div></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label for="taskScheduledDay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scheduled Day (Optional)</label><select id="taskScheduledDay" x-model="taskForm.scheduledDay" @change="if (!taskForm.scheduledDay) taskForm.scheduledTimeBlock = ''" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Not scheduled</option><template x-for="day in daysOfWeek" :key="day"> <option :value="day" x-text="day"></option> </template></select></div><div><label for="taskScheduledTimeBlock" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Block (Optional)</label><select id="taskScheduledTimeBlock" x-model="taskForm.scheduledTimeBlock" :disabled="!taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="">Not scheduled</option> <option value="Morning">Morning</option> <option value="Afternoon">Afternoon</option></select></div></div>
                         <p x-show="taskForm.scheduledDay && !taskForm.scheduledTimeBlock" class="text-red-500 text-sm mb-4">Please select a Time Block if scheduling for a Day.</p>
 
                         <div class="flex justify-between items-center mt-6">
@@ -625,6 +549,7 @@
             </div>
         </div>
 
+        <!-- Manage Team Members Modal -->
         <div x-show="showManageTeamMembersModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
            <div class="flex items-center justify-center min-h-screen px-4">
                 <div x-show="showManageTeamMembersModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showManageTeamMembersModal = false"></div>
@@ -636,6 +561,7 @@
             </div>
         </div>
 
+        <!-- Confirmation Modal -->
         <div x-show="showConfirmModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showConfirmModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showConfirmModal = false"></div>
@@ -647,6 +573,7 @@
             </div>
         </div>
 
+        <!-- Date Picker Modal -->
         <div x-show="showDatePickerModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
             <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                 <div x-show="showDatePickerModal"
@@ -686,13 +613,7 @@
                         </div>
 
                         <div class="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                            <div>Mo</div>
-                            <div>Tu</div>
-                            <div>We</div>
-                            <div>Th</div>
-                            <div>Fr</div>
-                            <div>Sa</div>
-                            <div>Su</div>
+                            <div>Mo</div> <div>Tu</div> <div>We</div> <div>Th</div> <div>Fr</div> <div>Sa</div> <div>Su</div>
                         </div>
 
                         <div class="grid grid-cols-7 gap-1">
@@ -717,78 +638,158 @@
                 </div>
             </div>
         </div>
-
+        <!-- End Modals -->
     </div>
 
     <script>
-        function initDarkMode() { if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } if (window.appInstance && (window.appInstance.taskStatusChartInstance || window.appInstance.weeklyWorkloadChartInstance)) { window.appInstance.updateCharts(); } }
-        initDarkMode(); window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { localStorage.removeItem('theme'); initDarkMode(); });
-        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
+        // --- Dark Mode Initialization ---
+        function initDarkMode() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            // Update charts if they exist (appInstance might not be ready on initial load)
+            if (window.appInstance && (window.appInstance.taskStatusChartInstance || window.appInstance.weeklyWorkloadChartInstance)) {
+                window.appInstance.updateCharts();
+            }
+        }
+        initDarkMode();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            localStorage.removeItem('theme'); // Let OS preference take over
+            initDarkMode();
+        });
 
+        // --- Alpine.js Application Logic ---
         function app() {
              // Ensure supabase client is available in this scope
-            const { createClient } = supabase;
-            const supabaseClient = createClient(supabaseUrl, supabaseKey);
+            const { createClient } = supabase; // Get createClient from global scope
+            const supabaseClient = createClient(supabaseUrl, supabaseKey); // Create instance for app
 
             return {
+                // --- State ---
                 currentView: 'projects',
-                expandedProjectId: null,
-                expandedSprintId: null,
-                selectedProjectStatusTab: 'In Progress',
-                selectedTeamMember: null,
-                calendarDate: new Date(),
-                draggedTask: null,
+                isLoading: true,
                 projects: [],
                 sprints: [],
                 tasks: [],
                 teamMembers: [],
-                projectForm: {}, sprintForm: {}, taskForm: {}, teamMemberForm: {},
-                showAddProjectModal: false, showAddSprintModal: false, showAddTaskModal: false, showManageTeamMembersModal: false, showConfirmModal: false,
-                editingProject: false, editingSprint: false, editingTask: false,
-                confirmTitle: '', confirmMessage: '', confirmAction: () => {},
-                daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-                taskStatusChartInstance: null, weeklyWorkloadChartInstance: null,
+                projectForm: {},
+                sprintForm: {},
+                taskForm: {},
+                teamMemberForm: {},
+                showAddProjectModal: false,
+                showAddSprintModal: false,
+                showAddTaskModal: false,
+                showManageTeamMembersModal: false,
+                showConfirmModal: false,
                 showDatePickerModal: false,
-                datePickerDate: new Date(),
-                isLoading: true,
+                editingProject: false,
+                editingSprint: false,
+                editingTask: false,
+                confirmTitle: '',
+                confirmMessage: '',
+                confirmAction: () => {},
+                expandedProjectId: null,
+                expandedSprintId: null,
+                selectedProjectStatusTab: 'In Progress',
+                calendarDate: new Date(), // Date controlling the calendar week view
+                datePickerDate: new Date(), // Date controlling the date picker modal month
+                selectedTeamMember: null, // ID of the selected team member for filtering calendar
+                daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], // Customize as needed
+                draggedTask: null, // Holds the task being dragged
+                taskStatusChartInstance: null,
+                weeklyWorkloadChartInstance: null,
 
+                // --- Initialization ---
                 async initApp() {
-                    window.appInstance = this;
+                    window.appInstance = this; // Make instance globally available for dark mode listener etc.
                     this.resetProjectForm();
                     this.resetSprintForm();
                     this.resetTaskForm();
                     this.resetTeamMemberForm();
                     await this.loadDataFromSupabase();
+                    // Initial chart setup depends on the starting view
                     if (this.currentView === 'dashboard') {
                         this.$nextTick(() => this.initCharts());
+                    } else if (this.currentView === 'calendar') {
+                         this.$nextTick(() => this.initWeeklyWorkloadChart());
                     }
-                    this.isLoading = false;
                 },
 
                 async loadDataFromSupabase() {
                     console.log("Attempting to load data from Supabase...");
                     this.isLoading = true;
                     try {
+                        // Fetch all data concurrently
                         const [projectsData, teamMembersData, sprintsData, tasksData] = await Promise.all([
                             fetchProjects(),
                             fetchTeamMembers(),
                             fetchSprints(),
                             fetchTasks()
                         ]);
+                        // Assign fetched data to Alpine state
                         this.projects = projectsData || [];
                         this.teamMembers = teamMembersData || [];
                         this.sprints = sprintsData || [];
                         this.tasks = tasksData || [];
-                        console.log("Loaded data from Supabase into Alpine state.");
+                        console.log(`Loaded ${this.projects.length} projects, ${this.teamMembers.length} members, ${this.sprints.length} sprints, ${this.tasks.length} tasks.`);
                     } catch (error) {
-                        console.error("Error loading data from Supabase:", error);
-                        alert("Failed to load initial data. Please check the console and refresh.");
+                        console.error("Error loading initial data from Supabase:", error);
+                        alert(`Failed to load initial data: ${error.message || error}. Please check console and refresh.`);
+                        // Keep isLoading true or set an error state if needed
+                        return; // Stop further processing if initial load fails
                     } finally {
                          this.isLoading = false;
+                         // Ensure charts are updated after data is loaded and view is potentially set
                          this.$nextTick(() => this.updateCharts());
                     }
                 },
 
+                // --- View Management ---
+                setView(view) {
+                    this.currentView = view;
+                    // Destroy/Initialize charts based on the new view
+                    this.$nextTick(() => this.updateCharts());
+                    // Collapse project/sprint views when leaving 'projects'
+                    if (view !== 'projects') {
+                        this.expandedProjectId = null;
+                        this.expandedSprintId = null;
+                    }
+                },
+
+                // --- Drag and Drop ---
+                handleDragStart(event, task) {
+                    this.draggedTask = task;
+                    event.target.classList.add('dragging');
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', task.id); // Store task ID
+                    console.log("DragStart:", task.name);
+                },
+                handleDragEnd(event) {
+                    // Use try...finally to ensure cleanup happens
+                    try {
+                        if (event.target && event.target.classList.contains('dragging')) {
+                            event.target.classList.remove('dragging');
+                        }
+                    } finally {
+                        this.draggedTask = null;
+                        // Clean up any lingering drag-over styles
+                        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                        console.log("DragEnd");
+                    }
+                },
+                handleDragOver(event) {
+                    if (this.draggedTask) {
+                        event.currentTarget.classList.add('drag-over');
+                    }
+                },
+                handleDragLeave(event) {
+                     // Only remove 'drag-over' if leaving the element entirely, not just moving to a child
+                     if (!event.currentTarget.contains(event.relatedTarget)) {
+                        event.currentTarget.classList.remove('drag-over');
+                     }
+                },
                 async handleDrop(event, day, timeBlock) {
                     event.currentTarget.classList.remove('drag-over');
                     if (!this.draggedTask) return;
@@ -797,145 +798,223 @@
                     const taskIndex = this.tasks.findIndex(t => t.id === taskId);
 
                     if (taskIndex !== -1) {
-                        const targetWeekId = this.getMonday(this.calendarDate).toISOString();
+                        const targetWeekId = this.getMonday(this.calendarDate).toISOString(); // Ensure correct week ID
                         const originalTask = this.tasks[taskIndex];
 
-                        const updatedData = {
-                            ...mapToDbTask(originalTask),
+                        // Prepare data for DB update using mapping function
+                        const updatedDbData = {
+                            ...mapToDbTask(originalTask), // Get base fields
                             scheduled_day: day,
                             scheduled_time_block: timeBlock,
                             scheduled_week_id: targetWeekId,
-                            modified_at: new Date().toISOString()
+                            modified_at: new Date().toISOString() // Ensure modified time is updated
                         };
+                        // Remove id from data payload itself for update, use it in .eq()
+                        delete updatedDbData.id;
 
-                        console.log("Updating task schedule in DB:", updatedData);
+                        console.log(`Dropping task "${originalTask.name}" to ${day} ${timeBlock} (Week: ${targetWeekId})`);
 
                         try {
                             const { data: updatedDbTask, error } = await supabaseClient
                                 .from('tasks')
-                                .update(updatedData)
-                                .eq('id', taskId)
-                                .select()
-                                .single();
+                                .update(updatedDbData)
+                                .eq('id', taskId) // Specify the row to update
+                                .select() // Fetch the updated row data
+                                .single(); // Expect only one row
 
-                            if (error) throw error;
+                            if (error) throw error; // Throw error to be caught below
 
-                            console.log("DB update successful:", updatedDbTask);
+                            console.log("DB update successful after drop:", updatedDbTask);
 
+                            // Map DB data back to JS object and update local Alpine state
                             const updatedLocalTask = mapFromDbTask(updatedDbTask);
                             this.tasks.splice(taskIndex, 1, updatedLocalTask);
-                            this.draggedTask = null;
 
                         } catch (error) {
                             console.error('Error updating task schedule in DB:', error);
                             alert(`Failed to update task schedule: ${error.message}`);
+                            // Optionally revert the visual change if needed, though drag ends anyway
+                        } finally {
+                             this.draggedTask = null; // Ensure draggedTask is cleared even on error
                         }
+                    } else {
+                        console.warn("Dropped task ID not found in local state:", taskId);
+                        this.draggedTask = null;
                     }
                 },
 
-                handleDragStart(event,task){this.draggedTask=task;event.target.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',task.id);},
-                handleDragEnd(event){try{if(event.target&&event.target.classList.contains('dragging')){event.target.classList.remove('dragging');}}finally{this.draggedTask=null;document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}},
-                handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
-                handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
 
-                setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}else if (view === 'calendar'){this.$nextTick(()=>this.initWeeklyWorkloadChart())}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}},
+                // --- Project Management ---
+                resetProjectForm() {
+                    this.projectForm = {
+                        id: null,
+                        name: '',
+                        description: '',
+                        priority: 'Medium',
+                        deadline: this.formatDateForInput(new Date(new Date().setDate(new Date().getDate() + 30))), // Default 30 days from now
+                        notes: '',
+                        status: 'Not Started'
+                    };
+                    this.editingProject = false;
+                },
+                editProject(project) {
+                    // Create a copy to avoid modifying the original object directly
+                    this.projectForm = { ...project };
+                    this.editingProject = true;
+                    this.showAddProjectModal = true;
+                },
+                async saveProject() {
+                    if (!this.projectForm.name || !this.projectForm.deadline) {
+                        alert('Project Name and Deadline are required.');
+                        return;
+                    }
 
-                resetProjectForm(){this.projectForm={id:null,name:'',description:'',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+30))),notes:'',status:'Not Started'};this.editingProject=false;},
-                editProject(project){this.projectForm={...project};this.editingProject=true;this.showAddProjectModal=true;},
-                async saveProject(){
-                    if(!this.projectForm.name||!this.projectForm.deadline) { alert('Project Name and Deadline are required.'); return; }
-
-                    const nowISO = new Date().toISOString();
-                    const projectDataJS = {...this.projectForm, modified: nowISO};
+                    // Prepare data using the mapping function
+                    const projectDataDB = mapToDbProject(this.projectForm);
 
                     try {
-                        if(this.editingProject){
-                             const projectDataDB = mapToDbProject(projectDataJS);
+                        if (this.editingProject) {
+                             // UPDATE
+                            const { id, ...updateData } = projectDataDB; // Separate ID for .eq()
                              const { data, error } = await supabaseClient
                                 .from('projects')
-                                .update(projectDataDB)
-                                .eq('id', projectDataJS.id)
-                                .select()
-                                .single();
+                                .update(updateData)
+                                .eq('id', id)
+                                .select() // Fetch the updated record
+                                .single(); // Expect one record
 
                             if (error) throw error;
 
                             const updatedProject = mapFromDbProject(data);
                             const index = this.projects.findIndex(p => p.id === updatedProject.id);
                             if (index !== -1) {
-                                this.projects.splice(index, 1, updatedProject);
+                                this.projects.splice(index, 1, updatedProject); // Replace item in array
+                                console.log("Project updated:", updatedProject.name);
                             }
                         } else {
-                            const { id, ...insertDataJS } = projectDataJS;
-                            insertDataJS.created = nowISO;
-                            const insertDataDB = mapToDbProject(insertDataJS);
-
+                            // INSERT
+                            // ID is not included for insert, DB generates it
+                            const { id, ...insertData } = projectDataDB;
                             const { data, error } = await supabaseClient
                                 .from('projects')
-                                .insert(insertDataDB)
-                                .select()
-                                .single();
+                                .insert(insertData)
+                                .select() // Fetch the newly inserted record
+                                .single(); // Expect one record
 
                             if (error) throw error;
 
                             const newProject = mapFromDbProject(data);
-                            this.projects.unshift(newProject);
+                            this.projects.unshift(newProject); // Add to the beginning of the list
+                            console.log("Project added:", newProject.name);
                         }
                         this.showAddProjectModal = false;
-                        this.updateCharts();
+                        this.updateCharts(); // Update dashboard if needed
                     } catch (error) {
                         console.error('Error saving project:', error);
                         alert(`Failed to save project: ${error.message || error}`);
                     }
                 },
-                confirmDeleteProject(project){this.confirmTitle='Delete Project';this.confirmMessage=`Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;this.confirmAction=()=>this.deleteProject(project.id);this.showConfirmModal=true;},
-                async deleteProject(projectId){
+                confirmDeleteProject(project) {
+                    this.confirmTitle = 'Delete Project';
+                    this.confirmMessage = `Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;
+                    this.confirmAction = () => this.deleteProject(project.id);
+                    this.showConfirmModal = true;
+                },
+                async deleteProject(projectId) {
+                    console.log(`Attempting to delete project ID: ${projectId}`);
                     try {
+                        // 1. Get IDs of sprints associated with the project
                         const sprintIds = this.sprints.filter(s => s.projectId === projectId).map(s => s.id);
+                        console.log(`Found ${sprintIds.length} sprints to delete:`, sprintIds);
 
+                        // 2. Delete tasks associated with those sprints (if any)
                         if (sprintIds.length > 0) {
                             const { error: taskError } = await supabaseClient.from('tasks').delete().in('sprint_id', sprintIds);
                             if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
+                            console.log(`Deleted tasks for sprints: ${sprintIds.join(', ')}`);
                         }
 
+                        // 3. Delete the sprints
                         const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('project_id', projectId);
                         if (sprintError) throw new Error(`Failed to delete sprints: ${sprintError.message}`);
+                        console.log(`Deleted sprints for project: ${projectId}`);
 
+                        // 4. Delete the project itself
                         const { error: projectError } = await supabaseClient.from('projects').delete().eq('id', projectId);
                         if (projectError) throw new Error(`Failed to delete project: ${projectError.message}`);
+                        console.log(`Deleted project: ${projectId}`);
 
+                        // 5. Update local state
                         this.tasks = this.tasks.filter(t => !sprintIds.includes(t.sprintId));
                         this.sprints = this.sprints.filter(s => s.projectId !== projectId);
                         this.projects = this.projects.filter(p => p.id !== projectId);
 
+                        // Reset expansion if the deleted project was expanded
                         if (this.expandedProjectId === projectId) { this.expandedProjectId = null; }
-                        this.updateCharts();
+                        this.updateCharts(); // Update dashboard stats
 
                     } catch (error) {
                         console.error('Error deleting project and related items:', error);
                         alert(`Deletion failed: ${error.message}`);
                     }
                 },
-                calculateProjectProgress(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);const projectTasks=this.tasks.filter(t=>sprintIds.includes(t.sprintId));if(projectTasks.length===0)return 0;const completedTasks=projectTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/projectTasks.length)*100);},
-                getProjectNameById(projectId){return this.projects.find(p=>p.id===projectId)?.name||'Unknown Project';},
+                calculateProjectProgress(projectId) {
+                    const sprintIds = this.sprints.filter(s => s.projectId === projectId).map(s => s.id);
+                    if (sprintIds.length === 0) return 0; // No sprints, no progress
+                    const projectTasks = this.tasks.filter(t => sprintIds.includes(t.sprintId));
+                    if (projectTasks.length === 0) return 0; // No tasks, no progress
+                    const completedTasks = projectTasks.filter(t => t.status === 'Done').length;
+                    return Math.round((completedTasks / projectTasks.length) * 100);
+                },
+                getProjectNameById(projectId) {
+                    return this.projects.find(p => p.id === projectId)?.name || 'Unknown Project';
+                },
 
-                getSprintsForProject(projectId){const sprints=this.sprints.filter(s=>s.projectId===projectId);return[...sprints].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));},
-                resetSprintForm(projectId=null){const today=new Date();const twoWeeksLater=new Date();twoWeeksLater.setDate(today.getDate()+14);this.sprintForm={id:null,projectId:projectId||'',name:'',startDate:this.formatDateForInput(today),endDate:this.formatDateForInput(twoWeeksLater)};this.editingSprint=false;},
-                editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.
-showAddSprintModal=true;},
-                async saveSprint(){
-                    if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate) { alert('Please fill all required fields and ensure End Date is after Start Date.'); return; }
+                // --- Sprint Management ---
+                getSprintsForProject(projectId) {
+                    const sprintsForProj = this.sprints.filter(s => s.projectId === projectId);
+                    // Sort by start date, newest first
+                    return [...sprintsForProj].sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+                },
+                resetSprintForm(projectId = null) {
+                    const today = new Date();
+                    const twoWeeksLater = new Date();
+                    twoWeeksLater.setDate(today.getDate() + 14);
+                    this.sprintForm = {
+                        id: null,
+                        projectId: projectId || '',
+                        name: '',
+                        startDate: this.formatDateForInput(today),
+                        endDate: this.formatDateForInput(twoWeeksLater)
+                    };
+                    this.editingSprint = false;
+                },
+                editSprint(sprint) {
+                    this.sprintForm = { ...sprint }; // Copy sprint data
+                    this.editingSprint = true;
+                    this.showAddSprintModal = true;
+                },
+                async saveSprint() {
+                    // Validation
+                    if (!this.sprintForm.name || !this.sprintForm.projectId || !this.sprintForm.startDate || !this.sprintForm.endDate) {
+                        alert('Please fill all required fields (Name, Project, Start Date, End Date).');
+                        return;
+                    }
+                    if (this.sprintForm.startDate > this.sprintForm.endDate) {
+                         alert('End Date must be on or after Start Date.');
+                         return;
+                    }
 
-                    const nowISO = new Date().toISOString();
-                    const sprintDataJS = {...this.sprintForm, modified: nowISO};
+                    const sprintDataDB = mapToDbSprint(this.sprintForm);
 
                     try {
-                        if(this.editingSprint){
-                            const sprintDataDB = mapToDbSprint(sprintDataJS);
+                        if (this.editingSprint) {
+                            // UPDATE
+                            const { id, ...updateData } = sprintDataDB;
                             const { data, error } = await supabaseClient
                                 .from('sprints')
-                                .update(sprintDataDB)
-                                .eq('id', sprintDataJS.id)
+                                .update(updateData)
+                                .eq('id', id)
                                 .select()
                                 .single();
 
@@ -945,97 +1024,125 @@ showAddSprintModal=true;},
                             const index = this.sprints.findIndex(s => s.id === updatedSprint.id);
                             if (index !== -1) {
                                 this.sprints.splice(index, 1, updatedSprint);
+                                console.log("Sprint updated:", updatedSprint.name);
                             }
                         } else {
-                             const { id, ...insertDataJS } = sprintDataJS;
-                             insertDataJS.created = nowISO;
-                             const insertDataDB = mapToDbSprint(insertDataJS);
-
+                            // INSERT
+                             const { id, ...insertData } = sprintDataDB;
                             const { data, error } = await supabaseClient
                                 .from('sprints')
-                                .insert(insertDataDB)
+                                .insert(insertData)
                                 .select()
                                 .single();
 
                             if (error) throw error;
 
                             const newSprint = mapFromDbSprint(data);
-                            this.sprints.push(newSprint);
+                            this.sprints.push(newSprint); // Add to end, will be sorted in getSprintsForProject
+                            console.log("Sprint added:", newSprint.name);
                         }
                         this.showAddSprintModal = false;
+                        // No chart update needed specifically for sprint add/edit unless it affects counts
                     } catch (error) {
                         console.error('Error saving sprint:', error);
                         alert(`Failed to save sprint: ${error.message}`);
                     }
                 },
-                confirmDeleteSprint(sprint){this.confirmTitle='Delete Sprint';this.confirmMessage=`Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;this.confirmAction=()=>this.deleteSprint(sprint.id);this.showConfirmModal=true;},
-                async deleteSprint(sprintId){
+                confirmDeleteSprint(sprint) {
+                    this.confirmTitle = 'Delete Sprint';
+                    this.confirmMessage = `Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;
+                    this.confirmAction = () => this.deleteSprint(sprint.id);
+                    this.showConfirmModal = true;
+                },
+                async deleteSprint(sprintId) {
+                     console.log(`Attempting to delete sprint ID: ${sprintId}`);
                     try {
+                        // 1. Delete tasks associated with the sprint
                         const { error: taskError } = await supabaseClient.from('tasks').delete().eq('sprint_id', sprintId);
-                        if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
+                        if (taskError) throw new Error(`Failed to delete tasks for sprint: ${taskError.message}`);
+                        console.log(`Deleted tasks for sprint: ${sprintId}`);
 
+                        // 2. Delete the sprint itself
                         const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('id', sprintId);
                         if (sprintError) throw new Error(`Failed to delete sprint: ${sprintError.message}`);
+                         console.log(`Deleted sprint: ${sprintId}`);
 
+                        // 3. Update local state
                         this.tasks = this.tasks.filter(t => t.sprintId !== sprintId);
                         this.sprints = this.sprints.filter(s => s.id !== sprintId);
 
+                        // Reset expansion if the deleted sprint was expanded
                         if (this.expandedSprintId === sprintId) { this.expandedSprintId = null; }
-                        this.updateCharts();
+                        this.updateCharts(); // Update counts if dashboard is visible
 
                     } catch (error) {
                         console.error('Error deleting sprint and related tasks:', error);
                         alert(`Deletion failed: ${error.message}`);
                     }
                 },
-                calculateSprintProgress(sprintId){const sprintTasks=this.getTasksForSprint(sprintId);if(sprintTasks.length===0)return 0;const completedTasks=sprintTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/sprintTasks.length)*100);},
-                countTasksByStatus(sprintId,status){return this.getTasksForSprint(sprintId).filter(t=>t.status===status).length;},
-                countActiveSprints(){const todayStr=this.formatDateForInput(new Date());return this.sprints.filter(sprint=>sprint.startDate<=todayStr&&sprint.endDate>=todayStr).length;},
+                calculateSprintProgress(sprintId) {
+                    const sprintTasks = this.getTasksForSprint(sprintId);
+                    if (sprintTasks.length === 0) return 0;
+                    const completedTasks = sprintTasks.filter(t => t.status === 'Done').length;
+                    return Math.round((completedTasks / sprintTasks.length) * 100);
+                },
+                countTasksByStatus(sprintId, status) {
+                    return this.getTasksForSprint(sprintId).filter(t => t.status === status).length;
+                },
+                countActiveSprints() {
+                    const todayStr = this.formatDateForInput(new Date());
+                    return this.sprints.filter(sprint => sprint.startDate <= todayStr && sprint.endDate >= todayStr).length;
+                },
 
-                getTasksForSprint(sprintId){
-                    return this.tasks.filter(t => t.sprintId === sprintId)
-                        .sort((a, b) => {
-                             const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
-                             const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
-                             if (statusDiff !== 0) return statusDiff;
-                             return a.name.localeCompare(b.name);
-                        });
+                // --- Task Management ---
+                getTasksForSprint(sprintId) {
+                    const tasksInSprint = this.tasks.filter(t => t.sprintId === sprintId);
+                     // Sort by status (Not Started, In Progress, Blocked, Done), then by name
+                    return [...tasksInSprint].sort((a, b) => {
+                         const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
+                         const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+                         if (statusDiff !== 0) return statusDiff;
+                         return a.name.localeCompare(b.name); // Alphabetical within status
+                    });
                 },
                 resetTaskForm() {
                     this.taskForm = {
                         id: null,
-                        selectedProjectIdForTask: '',
-                        sprintId: '',
+                        selectedProjectIdForTask: '', // Used in form to select project, which then filters sprints
+                        sprintId: '', // The actual sprint ID to save
                         name: '',
                         estimatedHours: 1,
                         dependencies: '',
-                        assignedTo: '',
+                        assignedTo: '', // Bound to select, maps to null in DB if empty
                         status: 'Not Started',
-                        scheduledDay: '',
-                        scheduledTimeBlock: '',
-                        scheduledWeekId: null,
-                        prefilledProjectId: false,
+                        scheduledDay: '', // Bound to select, maps to null in DB if empty
+                        scheduledTimeBlock: '', // Bound to select, maps to null in DB if empty
+                        scheduledWeekId: null, // Set automatically when scheduled
+                        prefilledProjectId: false, // Flags to disable project/sprint selection if opened from context
                         prefilledSprintId: false
                     };
                     this.editingTask = false;
                 },
-                editTask(task){
+                editTask(task) {
                     this.resetTaskForm();
                     const sprint = this.sprints.find(s => s.id === task.sprintId);
+                    // Populate form with existing task data
                     this.taskForm = {
-                        ...task,
-                        selectedProjectIdForTask: sprint ? sprint.projectId : '',
-                        prefilledProjectId: !!sprint,
-                        prefilledSprintId: !!task.sprintId
+                        ...task, // Spread task properties
+                        selectedProjectIdForTask: sprint ? sprint.projectId : '', // Find project ID for the form dropdown
+                        prefilledProjectId: !!sprint, // Disable project dropdown if we know it
+                        prefilledSprintId: !!task.sprintId // Disable sprint dropdown if we know it
                     };
                     this.editingTask = true;
                     this.showAddTaskModal = true;
                 },
-                openAddTaskModalForSlot(day,timeBlock,event){
-                    if(event && event.target.closest('.calendar-task')){return;}
+                openAddTaskModalForSlot(day, timeBlock, event) {
+                    // Prevent opening if clicking directly on an existing task
+                    if (event && event.target.closest('.calendar-task')) { return; }
                     this.resetTaskForm();
                     this.taskForm.scheduledDay = day;
                     this.taskForm.scheduledTimeBlock = timeBlock;
+                    // Set the week ID based on the current calendar view when adding via slot
                     this.taskForm.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
                     this.showAddTaskModal = true;
                 },
@@ -1043,36 +1150,42 @@ showAddSprintModal=true;},
                     this.resetTaskForm();
                     this.taskForm.selectedProjectIdForTask = projectId;
                     this.taskForm.sprintId = sprintId;
-                    this.taskForm.prefilledProjectId = true;
-                    this.taskForm.prefilledSprintId = true;
+                    this.taskForm.prefilledProjectId = true; // Disable project dropdown
+                    this.taskForm.prefilledSprintId = true; // Disable sprint dropdown
                     this.showAddTaskModal = true;
                 },
-                async saveTask(){
-                    if(!this.taskForm.name||!this.taskForm.selectedProjectIdForTask||!this.taskForm.sprintId||this.taskForm.estimatedHours<=0){alert('Please fill all required fields (Name, Project, Sprint, Est. Hours > 0).');return;}
-                    if(this.taskForm.scheduledDay&&!this.taskForm.scheduledTimeBlock){alert('Please select a Time Block if scheduling for a Day.');return;}
+                async saveTask() {
+                    // Validation
+                    if (!this.taskForm.name || !this.taskForm.selectedProjectIdForTask || !this.taskForm.sprintId || this.taskForm.estimatedHours <= 0) {
+                        alert('Please fill all required fields (Name, Project, Sprint, Est. Hours > 0).');
+                        return;
+                    }
+                    if (this.taskForm.scheduledDay && !this.taskForm.scheduledTimeBlock) {
+                        alert('Please select a Time Block if scheduling for a Day.');
+                        return;
+                    }
 
-                    const nowISO = new Date().toISOString();
-                    const taskDataJS = {
-                         ...this.taskForm,
-                         modified: nowISO
-                    };
-
-                     if (!taskDataJS.scheduledDay) {
-                         taskDataJS.scheduledTimeBlock = '';
-                         taskDataJS.scheduledWeekId = null;
+                     // Ensure week ID is set if scheduled, otherwise null
+                     if (this.taskForm.scheduledDay) {
+                        // If editing, might need to re-calc week ID if calendar date changed,
+                        // but usually drag/drop handles this. For modal save, assume current week context.
+                        this.taskForm.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
                      } else {
-                         taskDataJS.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
+                         this.taskForm.scheduledTimeBlock = ''; // Clear time block if day is cleared
+                         this.taskForm.scheduledWeekId = null;
                      }
+
+                    // Prepare data using mapping function
+                    const taskDataDB = mapToDbTask(this.taskForm);
 
                     try {
                         if (this.editingTask) {
-                            const { selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...updateDataJS } = taskDataJS;
-                            const updateDataDB = mapToDbTask(updateDataJS);
-
+                            // UPDATE
+                            const { id, ...updateData } = taskDataDB;
                             const { data, error } = await supabaseClient
                                 .from('tasks')
-                                .update(updateDataDB)
-                                .eq('id', updateDataJS.id)
+                                .update(updateData)
+                                .eq('id', id)
                                 .select()
                                 .single();
 
@@ -1080,27 +1193,27 @@ showAddSprintModal=true;},
 
                             const updatedTask = mapFromDbTask(data);
                             const index = this.tasks.findIndex(t => t.id === updatedTask.id);
-                            if(index !== -1){
+                            if (index !== -1) {
                                 this.tasks.splice(index, 1, updatedTask);
+                                console.log("Task updated:", updatedTask.name);
                             }
                         } else {
-                             const { id, selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...insertDataJS } = taskDataJS;
-                             insertDataJS.created = nowISO;
-                             const insertDataDB = mapToDbTask(insertDataJS);
-
-                             const { data, error } = await supabaseClient
+                            // INSERT
+                             const { id, ...insertData } = taskDataDB;
+                            const { data, error } = await supabaseClient
                                 .from('tasks')
-                                .insert(insertDataDB)
+                                .insert(insertData)
                                 .select()
                                 .single();
 
-                             if (error) throw error;
+                            if (error) throw error;
 
-                             const newTask = mapFromDbTask(data);
-                             this.tasks.push(newTask);
+                            const newTask = mapFromDbTask(data);
+                            this.tasks.push(newTask);
+                             console.log("Task added:", newTask.name);
                         }
                         this.showAddTaskModal = false;
-                        this.updateCharts();
+                        this.updateCharts(); // Update counts and potentially workload chart
                     } catch (error) {
                          console.error('Error saving task:', error);
                          alert(`Failed to save task: ${error.message}`);
@@ -1110,13 +1223,13 @@ showAddSprintModal=true;},
                     if (!taskId) return;
                     const taskIndex = this.tasks.findIndex(t => t.id === taskId);
                     if (taskIndex !== -1) {
-                        const nowISO = new Date().toISOString();
-
+                        console.log(`Removing task ${taskId} from calendar.`);
+                        // Prepare minimal update data
                         const updateDataDB = {
                           scheduled_day: null,
                           scheduled_time_block: null,
                           scheduled_week_id: null,
-                          modified_at: nowISO
+                          modified_at: new Date().toISOString() // Update modification time
                         };
 
                         try {
@@ -1124,16 +1237,17 @@ showAddSprintModal=true;},
                             .from('tasks')
                             .update(updateDataDB)
                             .eq('id', taskId)
-                            .select()
+                            .select() // Fetch updated record
                             .single();
 
                           if (error) throw error;
 
+                          // Update local state
                           const updatedTask = mapFromDbTask(data);
                           this.tasks.splice(taskIndex, 1, updatedTask);
-                          this.showAddTaskModal = false;
-                          console.log(`Task ${taskId} removed from calendar`);
-                          this.updateCharts();
+                          this.showAddTaskModal = false; // Close modal if open
+                          console.log(`Task ${taskId} successfully removed from calendar`);
+                          this.updateCharts(); // Update workload chart if visible
 
                         } catch (error) {
                           console.error("Error removing task from calendar in DB:", error);
@@ -1141,109 +1255,187 @@ showAddSprintModal=true;},
                         }
                     } else {
                         console.error("Task not found for removal from calendar:", taskId);
+                         this.showAddTaskModal = false; // Close modal anyway
                     }
                 },
-
-                confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
-                async deleteTask(taskId){
+                confirmDeleteTask(task) {
+                    this.confirmTitle = 'Delete Task';
+                    this.confirmMessage = `Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;
+                    this.confirmAction = () => this.deleteTask(task.id);
+                    this.showConfirmModal = true;
+                },
+                async deleteTask(taskId) {
+                     console.log(`Attempting to delete task ID: ${taskId}`);
                     try {
                         const { error } = await supabaseClient.from('tasks').delete().eq('id', taskId);
                         if (error) throw error;
 
+                        // Update local state
                         this.tasks = this.tasks.filter(t => t.id !== taskId);
-                        this.updateCharts();
+                        console.log(`Deleted task: ${taskId}`);
+                        this.updateCharts(); // Update counts etc.
                     } catch (error) {
                         console.error('Error deleting task:', error);
                         alert(`Failed to delete task: ${error.message}`);
                     }
                 },
-                countAllTasksByStatus(status){return this.tasks.filter(t=>t.status===status).length;},
+                countAllTasksByStatus(status) {
+                    return this.tasks.filter(t => t.status === status).length;
+                },
 
-                resetTeamMemberForm(){this.teamMemberForm={name:'',role:'',color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')};},
-                async addTeamMember(){
-                    if(!this.teamMemberForm.name||!this.teamMemberForm.role) { alert('Name and Role are required.'); return; }
-                    if(this.teamMembers.some(m=>m.name.toLowerCase()===this.teamMemberForm.name.toLowerCase())){alert('A team member with this name already exists.');return;}
+                // --- Team Member Management ---
+                resetTeamMemberForm() {
+                    this.teamMemberForm = {
+                        id: null, // ID not needed for adding
+                        name: '',
+                        role: '',
+                        color: '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0') // Random default color
+                    };
+                },
+                async addTeamMember() {
+                    // Validation
+                    if (!this.teamMemberForm.name || !this.teamMemberForm.role) {
+                        alert('Name and Role are required.');
+                        return;
+                    }
+                    if (this.teamMembers.some(m => m.name.toLowerCase() === this.teamMemberForm.name.toLowerCase())) {
+                        alert('A team member with this name already exists.');
+                        return;
+                    }
 
-                    const newMemberJS = {...this.teamMemberForm};
-                    const newMemberDB = mapToDbTeamMember(newMemberJS);
+                    const newMemberDB = mapToDbTeamMember(this.teamMemberForm);
+                    // Remove potential ID if somehow present from form reuse
+                     delete newMemberDB.id;
 
                     try {
                          const { data, error } = await supabaseClient
                             .from('team_members')
                             .insert(newMemberDB)
-                            .select()
+                            .select() // Fetch the newly added member with its ID
                             .single();
 
                         if (error) throw error;
 
                         const addedMember = mapFromDbTeamMember(data);
-                        this.teamMembers.push(addedMember);
-                        this.resetTeamMemberForm();
-                        this.updateCharts();
+                        this.teamMembers.push(addedMember); // Add to local state
+                         this.teamMembers.sort((a, b) => a.name.localeCompare(b.name)); // Keep sorted
+                        console.log("Team member added:", addedMember.name);
+                        this.resetTeamMemberForm(); // Clear form for next entry
+                        this.updateCharts(); // Update team workload if visible
 
                     } catch (error) {
                          console.error('Error adding team member:', error);
                          alert(`Failed to add team member: ${error.message}`);
                     }
                 },
-                confirmRemoveTeamMember(member){
-                     if(!member)return;
-                    this.confirmTitle='Remove Team Member';
-                    this.confirmMessage=`Are you sure you want to remove ${member.name}? Tasks assigned to them will become unassigned.`;
+                confirmRemoveTeamMember(member) {
+                     if (!member) return;
+                    this.confirmTitle = 'Remove Team Member';
+                    this.confirmMessage = `Are you sure you want to remove ${member.name}? Tasks currently assigned to them will become unassigned.`;
+                    // Pass ID and name for the actual removal process
                     this.confirmAction = () => this.removeTeamMember(member.id, member.name);
-                    this.showConfirmModal=true;
+                    this.showConfirmModal = true;
                 },
                 async removeTeamMember(memberId, memberName) {
+                     console.log(`Attempting to remove team member ID: ${memberId}, Name: ${memberName}`);
                     try {
+                        // 1. Unassign tasks associated with this member in the database
                         const { error: updateError } = await supabaseClient
                             .from('tasks')
-                            .update({ assigned_to: null, modified_at: new Date().toISOString() })
-                            .eq('assigned_to', memberName);
+                            .update({ assigned_to: null, modified_at: new Date().toISOString() }) // Set to null and update timestamp
+                            .eq('assigned_to', memberName); // Match by name
 
-                        if (updateError) throw new Error(`Failed to unassign tasks: ${updateError.message}`);
+                        // Continue even if updateError occurs (e.g., no tasks were assigned), but log it.
+                        if (updateError) console.warn(`Warning updating tasks for ${memberName}: ${updateError.message}`);
+                        else console.log(`Tasks unassigned for member: ${memberName}`);
 
+                        // 2. Delete the team member record
                         const { error: deleteError } = await supabaseClient
                             .from('team_members')
                             .delete()
                             .eq('id', memberId);
 
                         if (deleteError) throw new Error(`Failed to delete member: ${deleteError.message}`);
+                         console.log(`Deleted member: ${memberName} (ID: ${memberId})`);
 
+                        // 3. Update local state
+                        // Update tasks locally that were assigned to the removed member
                         this.tasks = this.tasks.map(task =>
                             task.assignedTo === memberName
-                            ? { ...task, assignedTo: '', modified: new Date().toISOString() }
+                            ? { ...task, assignedTo: '', modified: new Date().toISOString() } // Set local assignedTo to empty string
                             : task
                         );
+                        // Remove member from the teamMembers array
                         this.teamMembers = this.teamMembers.filter(m => m.id !== memberId);
 
+                        // Reset filter if the removed member was selected
                         if (this.selectedTeamMember === memberId) this.selectedTeamMember = null;
-                        this.updateCharts();
+                        this.updateCharts(); // Update views
 
                     } catch (error) {
                         console.error('Error removing team member:', error);
                         alert(`Failed to remove team member: ${error.message}`);
                     }
                 },
-                countTasksAssignedToMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).length;},
-                calculateTotalHoursForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                countCompletedTasksForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName&&t.status==='Done').length;},
-                getTeamMemberNameById(id){return this.teamMembers.find(m=>m.id===id)?.name||'';},
-                getTeamMemberColor(name,alpha=0.2){const defaultColor=document.documentElement.classList.contains('dark')?`rgba(75, 85, 99, ${alpha})`:`rgba(209, 213, 219, ${alpha})`;if(!name)return defaultColor;const member=this.teamMembers.find(m=>m.name===name);const hexColor=member?member.color:'#9ca3af';let r=0,g=0,b=0;if(hexColor.length===4){r=parseInt(hexColor[1]+hexColor[1],16);g=parseInt(hexColor[2]+hexColor[2],16);b=parseInt(hexColor[3]+hexColor[3],16);}else if(hexColor.length===7){r=parseInt(hexColor[1]+hexColor[2],16);g=parseInt(hexColor[3]+hexColor[4],16);b=parseInt(hexColor[5]+hexColor[6],16);}else{return defaultColor;}return`rgba(${r}, ${g}, ${b}, ${alpha})`;},
+                countTasksAssignedToMember(memberId) {
+                    const memberName = this.getTeamMemberNameById(memberId);
+                    if (!memberName) return 0;
+                    return this.tasks.filter(t => t.assignedTo === memberName).length;
+                },
+                calculateTotalHoursForMember(memberId) {
+                    const memberName = this.getTeamMemberNameById(memberId);
+                     if (!memberName) return 0;
+                    return this.tasks
+                        .filter(t => t.assignedTo === memberName)
+                        .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
+                },
+                countCompletedTasksForMember(memberId) {
+                    const memberName = this.getTeamMemberNameById(memberId);
+                    if (!memberName) return 0;
+                    return this.tasks.filter(t => t.assignedTo === memberName && t.status === 'Done').length;
+                },
+                getTeamMemberNameById(id) {
+                    return this.teamMembers.find(m => m.id === id)?.name || '';
+                },
+                getTeamMemberColor(name, alpha = 1) { // Default alpha to 1 for solid color unless overridden
+                    const defaultColor = document.documentElement.classList.contains('dark') ? `rgba(75, 85, 99, ${alpha})` : `rgba(209, 213, 219, ${alpha})`; // Gray for unassigned/default
+                    if (!name) return defaultColor;
+
+                    const member = this.teamMembers.find(m => m.name === name);
+                    const hexColor = member ? member.color : '#9ca3af'; // Use gray if member not found (shouldn't happen often)
+
+                    // Convert hex to rgba
+                    let r = 0, g = 0, b = 0;
+                    if (hexColor.length === 4) { // #RGB format
+                        r = parseInt(hexColor[1] + hexColor[1], 16);
+                        g = parseInt(hexColor[2] + hexColor[2], 16);
+                        b = parseInt(hexColor[3] + hexColor[3], 16);
+                    } else if (hexColor.length === 7) { // #RRGGBB format
+                        r = parseInt(hexColor[1] + hexColor[2], 16);
+                        g = parseInt(hexColor[3] + hexColor[4], 16);
+                        b = parseInt(hexColor[5] + hexColor[6], 16);
+                    } else {
+                        return defaultColor; // Invalid hex format
+                    }
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                },
                 getTaskPriorityColor(task) {
                     const priority = this.getTaskPriority(task);
                     switch (priority) {
-                        case 'High': return '#ef4444';
-                        case 'Medium': return '#f59e0b';
-                        case 'Low': return '#10b981';
-                        default: return '#9ca3af';
+                        case 'High': return '#ef4444'; // Red-500
+                        case 'Medium': return '#f59e0b'; // Amber-500
+                        case 'Low': return '#10b981'; // Emerald-500
+                        default: return '#9ca3af'; // Gray-400
                     }
                 },
-                 getContrastColor(bgColor) {
-                    if (!bgColor) return '#1f2937';
+                getContrastColor(bgColor) {
+                    if (!bgColor) return '#1f2937'; // Default dark text
+
                     const parseColor = (color) => {
+                        // Handles rgba(r, g, b, a) and hex (#RGB, #RRGGBB)
                         if (color.startsWith('rgba')) {
                             const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
-                            return parts ? { r: parseIntparts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
+                            return parts ? { r: parseInt(parts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
                         } else if (color.startsWith('#')) {
                             let hex = color.substring(1);
                             if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
@@ -1255,37 +1447,51 @@ showAddSprintModal=true;},
                                 };
                             }
                         }
-                        return null;
+                        return null; // Invalid format
                     };
+
                     const rgb = parseColor(bgColor);
-                    if (!rgb) return '#1f2937'; // Default dark text
+                    if (!rgb) return '#1f2937'; // Default dark text if parse failed
+
+                    // Calculate luminance (per WCAG)
                     const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
-                    return luminance > 0.5 ? '#1f2937' : '#ffffff'; // Dark text for light bg, White text for dark bg
+
+                    // Return black (#1f2937) or white (#ffffff) based on contrast
+                    return luminance > 0.5 ? '#1f2937' : '#ffffff';
                 },
-                get scheduledTasksForWeek(){
+
+                // --- Calendar Data Getters & Helpers ---
+                 get scheduledTasksForWeek() {
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
+                    // Filter tasks by the specific week ID and the selected team member (if any)
                     return this.tasks.filter(task => {
                         const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO;
                         const memberMatch = this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember);
                         return weekMatch && memberMatch;
                     });
                 },
-                getTasksForDayAndTime(day,timeBlock){
-                    const filteredTasks=this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock);
-                    const priorityOrder={'High':0,'Medium':1,'Low':2};
-                    const statusOrder={'Not Started':0,'In Progress':1,'Blocked':2,'Done':3};
-                    return[...filteredTasks].sort((a,b)=>{
-                        const priorityA=this.getTaskPriority(a);
-                        const priorityB=this.getTaskPriority(b);
-                        const priorityDiff=(priorityOrder[priorityA]??99)-(priorityOrder[priorityB]??99);
-                        if(priorityDiff!==0)return priorityDiff;
-                        const statusDiff=(statusOrder[a.status] ?? 99)-(statusOrder[b.status] ?? 99);
-                        if(statusDiff!==0)return statusDiff;
+                getTasksForDayAndTime(day, timeBlock) {
+                    const filteredTasks = this.scheduledTasksForWeek.filter(task =>
+                        task.scheduledDay === day && task.scheduledTimeBlock === timeBlock
+                    );
+                    // Sort tasks within the block: Priority > Status > Name
+                    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+                    const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
+                    return [...filteredTasks].sort((a, b) => {
+                        const priorityA = this.getTaskPriority(a);
+                        const priorityB = this.getTaskPriority(b);
+                        const priorityDiff = (priorityOrder[priorityA] ?? 99) - (priorityOrder[priorityB] ?? 99);
+                        if (priorityDiff !== 0) return priorityDiff;
+
+                        const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+                        if (statusDiff !== 0) return statusDiff;
+
                         return a.name.localeCompare(b.name);
                     });
                 },
-                 getHoursPerMemberForDayAndTime(day, timeBlock) {
+                getHoursPerMemberForDayAndTime(day, timeBlock) {
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
+                    // Filter ALL tasks for the slot, regardless of the calendar's member filter
                     const tasksInBlock = this.tasks.filter(task =>
                         task.scheduledWeekId === mondayOfViewWeekISO &&
                         task.scheduledDay === day &&
@@ -1295,52 +1501,115 @@ showAddSprintModal=true;},
                     tasksInBlock.forEach(task => {
                         const memberName = task.assignedTo || 'Unassigned';
                         const hours = Number(task.estimatedHours) || 0;
-                        if (hours > 0) {
+                        if (hours > 0) { // Only count if hours > 0
                             hoursByMember[memberName] = (hoursByMember[memberName] || 0) + hours;
                         }
                     });
+                    // Convert to array, filter out zero hours, and sort
                     const result = Object.entries(hoursByMember)
                         .map(([name, hours]) => ({ name, hours }))
-                        .filter(item => item.hours > 0)
+                        .filter(item => item.hours > 0) // Remove members with 0 hours in this block
                         .sort((a, b) => {
+                            // Sort 'Unassigned' to the end, otherwise alphabetically
                             if (a.name === 'Unassigned' && b.name !== 'Unassigned') return 1;
                             if (a.name !== 'Unassigned' && b.name === 'Unassigned') return -1;
                             return a.name.localeCompare(b.name);
                         });
                     return result;
                 },
-                getTaskPriority(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return null;const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.priority:null;},
-                getProjectNameForTask(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return'Unknown Project';const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.name:'Unknown Project';},
-                getTotalHoursForDayAndTime(day,timeBlock){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                getTotalHoursForDay(day){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                getTotalWeeklyHours(){return this.scheduledTasksForWeek.reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                previousWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()-7);this.calendarDate=newDate; this.updateCharts();},
-                nextWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()+7);this.calendarDate=newDate; this.updateCharts();},
-                formatWeekRange(){const startOfWeek=this.getMonday(this.calendarDate);const endOfWeek=new Date(startOfWeek);endOfWeek.setDate(startOfWeek.getDate()+(this.daysOfWeek.length-1));const options={month:'short',day:'numeric'};const startStr=startOfWeek.toLocaleDateString('en-US',options);const endStr=endOfWeek.toLocaleDateString('en-US',options);const year=endOfWeek.getFullYear();return`${startStr} - ${endStr}, ${year}`;},
-                formatDayDate(dayIndex){const date=this.getMonday(this.calendarDate);date.setDate(date.getDate()+dayIndex);return`${date.getMonth()+1}/${date.getDate()}`;},
-                getMonday(d){const date=new Date(d);const day=date.getDay();const diff=date.getDate()-day+(day===0?-6:1); const monday=new Date(date.setDate(diff));monday.setHours(0,0,0,0); return monday;},
-                getWeeklyTasks(){return this.scheduledTasksForWeek;},
-                countWeeklyTasksByStatus(status){return this.getWeeklyTasks().filter(task=>task.status===status).length;},
-                countWeeklyTasksByPriority(priority){return this.getWeeklyTasks().filter(task=>this.getTaskPriority(task)===priority).length;},
+                getTaskPriority(task) {
+                    const sprint = this.sprints.find(s => s.id === task.sprintId);
+                    if (!sprint) return null;
+                    const project = this.projects.find(p => p.id === sprint.projectId);
+                    return project ? project.priority : null;
+                },
+                getProjectNameForTask(task) {
+                    const sprint = this.sprints.find(s => s.id === task.sprintId);
+                    if (!sprint) return 'Unknown Project';
+                    const project = this.projects.find(p => p.id === sprint.projectId);
+                    return project ? project.name : 'Unknown Project';
+                },
+                getTotalHoursForDayAndTime(day, timeBlock) { // Considers selected member filter
+                    return this.scheduledTasksForWeek
+                        .filter(task => task.scheduledDay === day && task.scheduledTimeBlock === timeBlock)
+                        .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
+                },
+                getTotalHoursForDay(day) { // Considers selected member filter
+                    return this.scheduledTasksForWeek
+                        .filter(task => task.scheduledDay === day)
+                        .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
+                },
+                getTotalWeeklyHours() { // Considers selected member filter
+                    return this.scheduledTasksForWeek
+                        .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
+                },
+                countWeeklyTasksByStatus(status) { // Considers selected member filter
+                    return this.scheduledTasksForWeek.filter(task => task.status === status).length;
+                },
+                countWeeklyTasksByPriority(priority) { // Considers selected member filter
+                    return this.scheduledTasksForWeek.filter(task => this.getTaskPriority(task) === priority).length;
+                },
 
+                // --- Calendar Navigation ---
+                previousWeek() {
+                    const newDate = new Date(this.calendarDate);
+                    newDate.setDate(newDate.getDate() - 7);
+                    this.calendarDate = newDate;
+                    this.updateCharts(); // Update workload chart if on calendar view
+                },
+                nextWeek() {
+                    const newDate = new Date(this.calendarDate);
+                    newDate.setDate(newDate.getDate() + 7);
+                    this.calendarDate = newDate;
+                     this.updateCharts(); // Update workload chart if on calendar view
+                },
+                formatWeekRange() {
+                    const startOfWeek = this.getMonday(this.calendarDate);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1)); // Adjust based on daysOfWeek length
+                    const options = { month: 'short', day: 'numeric' };
+                    const startStr = startOfWeek.toLocaleDateString('en-US', options);
+                    const endStr = endOfWeek.toLocaleDateString('en-US', options);
+                    const year = startOfWeek.getFullYear(); // Use start of week's year or end of week if it spans year change
+                    const endYear = endOfWeek.getFullYear();
+                    return `${startStr}${year !== endYear ? ', ' + year : ''} - ${endStr}, ${endYear}`;
+                },
+                formatDayDate(dayIndex) {
+                    const date = this.getMonday(this.calendarDate);
+                    date.setDate(date.getDate() + dayIndex);
+                    // Format as MM/DD
+                    return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getDate().toString().padStart(2, '0')}`;
+                },
+                getMonday(d) {
+                    const date = new Date(d);
+                    const day = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust Sunday to be previous week
+                    const monday = new Date(date.setDate(diff));
+                    monday.setHours(0, 0, 0, 0); // Standardize to midnight
+                    return monday;
+                },
+
+                // --- Date Picker Modal Logic ---
                 openDatePicker() {
-                    this.datePickerDate = new Date(this.calendarDate);
+                    this.datePickerDate = new Date(this.calendarDate); // Start picker at current calendar month/year
                     this.showDatePickerModal = true;
                 },
                 closeDatePicker() {
                     this.showDatePickerModal = false;
                 },
                 previousDatePickerMonth() {
+                    // Go to the first day of the previous month
                     this.datePickerDate = new Date(this.datePickerDate.getFullYear(), this.datePickerDate.getMonth() - 1, 1);
                 },
                 nextDatePickerMonth() {
+                     // Go to the first day of the next month
                     this.datePickerDate = new Date(this.datePickerDate.getFullYear(), this.datePickerDate.getMonth() + 1, 1);
                 },
                 selectDateFromPicker(dayDate) {
                     if (!dayDate) return;
-                    this.calendarDate = new Date(dayDate);
+                    this.calendarDate = new Date(dayDate); // Set main calendar date
                     this.closeDatePicker();
-                    this.updateCharts();
+                    this.updateCharts(); // Update workload chart
                 },
                 isToday(date) {
                     if (!date) return false;
@@ -1349,21 +1618,24 @@ showAddSprintModal=true;},
                            date.getMonth() === today.getMonth() &&
                            date.getFullYear() === today.getFullYear();
                 },
-                isSameDay(date1, date2) {
+                isSameDay(date1, date2) { // Utility for comparisons if needed elsewhere
                     if (!date1 || !date2) return false;
                     return date1.getDate() === date2.getDate() &&
                            date1.getMonth() === date2.getMonth() &&
                            date1.getFullYear() === date2.getFullYear();
                 },
-                isInCurrentDisplayedWeek(date) {
+                 isInCurrentDisplayedWeek(date) {
                     if (!date) return false;
                     const startOfWeek = this.getMonday(this.calendarDate);
                     const endOfWeek = new Date(startOfWeek);
-                    endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1));
+                    endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1)); // Use configured days
+
+                    // Compare dates only, ignore time
                     const compareDate = new Date(date);
                     compareDate.setHours(0, 0, 0, 0);
-                    startOfWeek.setHours(0, 0, 0, 0);
+                    // startOfWeek is already set to midnight by getMonday
                     endOfWeek.setHours(0, 0, 0, 0);
+
                     return compareDate >= startOfWeek && compareDate <= endOfWeek;
                 },
                 generateCalendarDays() {
@@ -1371,20 +1643,24 @@ showAddSprintModal=true;},
                     const month = this.datePickerDate.getMonth();
                     const firstDayOfMonth = new Date(year, month, 1);
                     const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    let startDayOfWeek = firstDayOfMonth.getDay();
-                    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1; // Adjust to Monday start
+
+                    // Get the day of the week for the 1st (0=Sun, 1=Mon, ... 6=Sat)
+                    let startDayOfWeekIndex = firstDayOfMonth.getDay();
+                    // Adjust so Monday is index 0, Sunday is index 6
+                    startDayOfWeekIndex = (startDayOfWeekIndex === 0) ? 6 : startDayOfWeekIndex - 1;
 
                     const days = [];
                     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
                     // Days from previous month
-                    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+                    for (let i = startDayOfWeekIndex - 1; i >= 0; i--) {
+                        const dayNum = daysInPrevMonth - i;
                         days.push({
-                            date: new Date(year, month - 1, daysInPrevMonth - i),
-                            dayOfMonth: daysInPrevMonth - i,
+                            date: new Date(year, month - 1, dayNum),
+                            dayOfMonth: dayNum,
                             isCurrentMonth: false,
                             isToday: false,
-                            isInCurrentWeek: false // Not relevant for previous month days
+                            isInCurrentWeek: false // Not relevant for prev month days
                         });
                     }
 
@@ -1400,7 +1676,7 @@ showAddSprintModal=true;},
                         });
                     }
 
-                    // Days from next month to fill the grid (assuming 6 rows, 42 cells)
+                    // Days from next month to fill the grid (up to 6 rows * 7 columns = 42 cells)
                     const remainingCells = 42 - days.length;
                     for (let i = 1; i <= remainingCells; i++) {
                         days.push({
@@ -1408,7 +1684,7 @@ showAddSprintModal=true;},
                             dayOfMonth: i,
                             isCurrentMonth: false,
                             isToday: false,
-                            isInCurrentWeek: false // Not relevant for next month days
+                             isInCurrentWeek: false // Not relevant for next month days
                         });
                     }
                     return days;
@@ -1417,82 +1693,188 @@ showAddSprintModal=true;},
                     return this.datePickerDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 },
 
-                destroyCharts(){if(this.taskStatusChartInstance){this.taskStatusChartInstance.destroy();this.taskStatusChartInstance=null;}if(this.weeklyWorkloadChartInstance){this.weeklyWorkloadChartInstance.destroy();this.weeklyWorkloadChartInstance=null;}},
-                initCharts(){this.$nextTick(()=>{this.destroyCharts();this.initTaskStatusChart();this.initWeeklyWorkloadChart();});},
-                initTaskStatusChart(){
-                    if (this.currentView !== 'dashboard') return;
-                    const ctx=document.getElementById('taskStatusChart')?.getContext('2d');if(!ctx)return;
-                    const statuses=['Not Started','In Progress','Blocked','Done'];const counts=statuses.map(status=>this.countAllTasksByStatus(status));const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';
-
-                    if (this.taskStatusChartInstance) this.taskStatusChartInstance.destroy();
-
-                    this.taskStatusChartInstance=new Chart(ctx,{type:'doughnut',data:{labels:statuses,datasets:[{data:counts,backgroundColor:[isDarkMode?'rgba(107, 114, 128, 0.7)':'rgba(156, 163, 175, 0.8)',isDarkMode?'rgba(96, 165, 250, 0.7)':'rgba(59, 130, 246, 0.8)',isDarkMode?'rgba(248, 113, 113, 0.7)':'rgba(239, 68, 68, 0.8)',isDarkMode?'rgba(52, 211, 153, 0.7)':'rgba(16, 185, 129, 0.8)'],borderColor:isDarkMode?'#1f2937':'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,padding:15,boxWidth:12,}},tooltip:{callbacks:{label:function(context){let label=context.label||'';if(label){label+=': ';}if(context.parsed!==null){label+=context.parsed;}const total=context.dataset.data.reduce((a,b)=>a+b,0);const percentage=total>0?Math.round((context.parsed/total)*100):0;label+=` (${percentage}%)`;return label;}}}}}});
+                // --- Charting ---
+                destroyCharts() {
+                    if (this.taskStatusChartInstance) {
+                        this.taskStatusChartInstance.destroy();
+                        this.taskStatusChartInstance = null;
+                        // console.log("Task Status Chart destroyed");
+                    }
+                    if (this.weeklyWorkloadChartInstance) {
+                        this.weeklyWorkloadChartInstance.destroy();
+                        this.weeklyWorkloadChartInstance = null;
+                         // console.log("Weekly Workload Chart destroyed");
+                    }
                 },
-                initWeeklyWorkloadChart(){
-                     if (this.currentView !== 'dashboard' && this.currentView !== 'calendar') return;
-                    const ctx=document.getElementById('weeklyWorkloadChart')?.getContext('2d');
-                    if(!ctx)return;
-
-                    const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
-                    const dailyHours = this.daysOfWeek.map((day) => {
-                        return this.tasks
-                            .filter(task => {
-                                const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO && task.scheduledDay === day;
-                                // Apply team member filter only if viewing calendar; show all on dashboard
-                                const memberMatch = this.currentView !== 'dashboard'
-                                    ? (this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember))
-                                    : true;
-                                return weekMatch && memberMatch;
-                            })
-                            .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
-                    });
-
-                    const isDarkMode=document.documentElement.classList.contains('dark');
-                    const textColor=isDarkMode?'#e5e7eb':'#374151';
-                    const gridColor=isDarkMode?'rgba(255, 255, 255, 0.1)':'rgba(0, 0, 0, 0.05)';
-                    const barColor=isDarkMode?'rgba(129, 128, 228, 0.7)':'rgba(93, 92, 222, 0.8)';
-
-                     if (this.weeklyWorkloadChartInstance) {
-                         this.weeklyWorkloadChartInstance.destroy();
-                     }
-
-                    this.weeklyWorkloadChartInstance=new Chart(ctx,{type:'bar',data:{labels:this.daysOfWeek.map(d=>d.substring(0,3)),datasets:[{label:'Est. Hours Scheduled',data:dailyHours,backgroundColor:barColor,borderRadius:4,}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor},title:{display:true,text:'Hours',color:textColor}},x:{grid:{display:false},ticks:{color:textColor}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(context){return` ${context.parsed.y} hours`;}}}}}});
-                },
-                 updateCharts(){
+                initCharts() { // Called only when Dashboard becomes active
                     this.$nextTick(() => {
-                         if(this.currentView === 'dashboard'){
+                         this.destroyCharts(); // Ensure clean slate
+                        this.initTaskStatusChart();
+                        // this.initWeeklyWorkloadChart(); // Workload chart now lives in Calendar summary
+                         console.log("Dashboard charts initialized");
+                    });
+                },
+                updateCharts() { // Called on data changes or view changes
+                    this.$nextTick(() => {
+                        this.destroyCharts(); // Always destroy first
+                        if (this.currentView === 'dashboard') {
                             this.initTaskStatusChart();
-                            this.initWeeklyWorkloadChart(); // Also init workload chart for dashboard
+                            // No workload chart on dashboard anymore
                         } else if (this.currentView === 'calendar') {
-                             // Only update the workload chart if it exists on the calendar view
-                             if (document.getElementById('weeklyWorkloadChart')) {
-                                this.initWeeklyWorkloadChart();
-                             } else {
-                                // If the chart element isn't present (e.g., moved to dashboard only), destroy any lingering instance
-                                if(this.weeklyWorkloadChartInstance){
-                                    this.weeklyWorkloadChartInstance.destroy();
-                                    this.weeklyWorkloadChartInstance = null;
+                             // Only workload chart on calendar
+                             this.initWeeklyWorkloadChart();
+                        }
+                         // console.log("Charts updated for view:", this.currentView);
+                    });
+                },
+                initTaskStatusChart() {
+                    if (this.currentView !== 'dashboard') return; // Only on dashboard
+                    const ctx = document.getElementById('taskStatusChart')?.getContext('2d');
+                    if (!ctx) { console.warn("Task Status Chart canvas not found"); return; }
+
+                    const statuses = ['Not Started', 'In Progress', 'Blocked', 'Done'];
+                    const counts = statuses.map(status => this.countAllTasksByStatus(status));
+                    const isDarkMode = document.documentElement.classList.contains('dark');
+                    const textColor = isDarkMode ? '#e5e7eb' : '#374151'; // Light gray / Dark gray
+                    const borderColor = isDarkMode ? '#1f2937' : '#ffffff'; // Dark bg / White bg
+
+                    // Define colors, considering dark mode
+                    const backgroundColors = [
+                        isDarkMode ? 'rgba(107, 114, 128, 0.7)' : 'rgba(156, 163, 175, 0.8)', // Gray
+                        isDarkMode ? 'rgba(96, 165, 250, 0.7)' : 'rgba(59, 130, 246, 0.8)',  // Blue
+                        isDarkMode ? 'rgba(248, 113, 113, 0.7)' : 'rgba(239, 68, 68, 0.8)',   // Red
+                        isDarkMode ? 'rgba(52, 211, 153, 0.7)' : 'rgba(16, 185, 129, 0.8)'   // Green
+                    ];
+
+                    this.taskStatusChartInstance = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: statuses,
+                            datasets: [{
+                                data: counts,
+                                backgroundColor: backgroundColors,
+                                borderColor: borderColor,
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                    labels: {
+                                        color: textColor,
+                                        padding: 15,
+                                        boxWidth: 12,
+                                    }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (label) { label += ': '; }
+                                            const value = context.parsed || 0;
+                                            label += value;
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                            label += ` (${percentage}%)`;
+                                            return label;
+                                        }
+                                    }
                                 }
-                             }
-                             // Task status chart is only on dashboard, so no need to update/init here
-                             if(this.taskStatusChartInstance){
-                                 this.taskStatusChartInstance.destroy();
-                                 this.taskStatusChartInstance = null;
-                             }
-                        } else {
-                             // Destroy charts if not on dashboard or calendar view
-                             this.destroyCharts();
+                            }
                         }
                     });
+                     console.log("Task Status Chart initialized/updated");
                 },
-                formatDate(dateString){if(!dateString)return'N/A';try{const date=new Date(dateString+'T00:00:00');if(isNaN(date))return'Invalid Date';return date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}catch(e){console.error("Error formatting date:",dateString,e);return'Invalid Date';}},
-                formatDateForInput(date){if(!date||!(date instanceof Date)||isNaN(date))return'';try{return date.toISOString().split('T')[0];}catch(e){console.error("Error formatting date for input:",date,e);return'';}}
-            };
+                initWeeklyWorkloadChart() {
+                     if (this.currentView !== 'calendar') return; // Now only on calendar view summary
+                    const ctx = document.getElementById('weeklyWorkloadChart')?.getContext('2d');
+                    if (!ctx) { console.warn("Weekly Workload Chart canvas not found"); return; }
+
+                    // Use scheduledTasksForWeek getter which respects the team member filter
+                    const dailyHours = this.daysOfWeek.map(day => this.getTotalHoursForDay(day));
+
+                    const isDarkMode = document.documentElement.classList.contains('dark');
+                    const textColor = isDarkMode ? '#e5e7eb' : '#374151';
+                    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+                    const barColor = isDarkMode ? 'rgba(129, 128, 228, 0.7)' : 'rgba(93, 92, 222, 0.8)'; // Primary color with alpha
+
+                    this.weeklyWorkloadChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            // Short day names (Mon, Tue, etc.)
+                            labels: this.daysOfWeek.map(d => d.substring(0, 3)),
+                            datasets: [{
+                                label: 'Est. Hours Scheduled',
+                                data: dailyHours,
+                                backgroundColor: barColor,
+                                borderRadius: 4,
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: gridColor },
+                                    ticks: { color: textColor },
+                                    title: { display: true, text: 'Hours', color: textColor }
+                                },
+                                x: {
+                                    grid: { display: false }, // Hide vertical grid lines
+                                    ticks: { color: textColor }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }, // Keep it simple, label is enough
+                                tooltip: {
+                                    callbacks: {
+                                        // Simple tooltip showing hours
+                                        label: function(context) { return ` ${context.parsed.y} hours`; }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                     console.log("Weekly Workload Chart initialized/updated");
+                },
+
+                // --- Utility Functions ---
+                formatDate(dateString) {
+                    // Handles 'YYYY-MM-DD' input
+                    if (!dateString) return 'N/A';
+                    try {
+                        // Add T00:00:00 to ensure it's parsed in local timezone consistently
+                        const date = new Date(dateString + 'T00:00:00');
+                        if (isNaN(date)) return 'Invalid Date';
+                        // Format like 'Jan 1, 2024'
+                        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                    } catch (e) {
+                        console.error("Error formatting date:", dateString, e);
+                        return 'Invalid Date';
+                    }
+                },
+                formatDateForInput(date) {
+                    // Outputs 'YYYY-MM-DD' for <input type="date">
+                    if (!date || !(date instanceof Date) || isNaN(date)) return '';
+                    try {
+                        // Ensure date is treated as local, then get ISO parts
+                         const year = date.getFullYear();
+                         const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                         const day = date.getDate().toString().padStart(2, '0');
+                         return `${year}-${month}-${day}`;
+                    } catch (e) {
+                        console.error("Error formatting date for input:", date, e);
+                        return '';
+                    }
+                }
+            }; // End of app() return object
         }
     </script>
 
 </body>
 </html>
-
-
-
+```
