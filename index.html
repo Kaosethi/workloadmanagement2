@@ -813,7 +813,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                         console.log("Updating task schedule in DB:", updatedData);
 
                         try {
-                            const { data: updatedDbTask, error } = await supabase
+                            const { data: updatedDbTask, error } = await supabaseClient
                                 .from('tasks')
                                 .update(updatedData)
                                 .eq('id', taskId)
@@ -855,7 +855,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                     try {
                         if(this.editingProject){
                              const projectDataDB = mapToDbProject(projectDataJS);
-                             const { data, error } = await supabase
+                             const { data, error } = await supabaseClient
                                 .from('projects')
                                 .update(projectDataDB)
                                 .eq('id', projectDataJS.id)
@@ -875,7 +875,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                             insertDataJS.created = nowISO; // Ensure created timestamp
                             const insertDataDB = mapToDbProject(insertDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('projects')
                                 .insert(insertDataDB)
                                 .select()
@@ -941,7 +941,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                     try {
                         if(this.editingSprint){
                             const sprintDataDB = mapToDbSprint(sprintDataJS);
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
                                 .update(sprintDataDB)
                                 .eq('id', sprintDataJS.id)
@@ -960,7 +960,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                              insertDataJS.created = nowISO;
                              const insertDataDB = mapToDbSprint(insertDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
                                 .insert(insertDataDB)
                                 .select()
@@ -1083,7 +1083,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                             const { selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...updateDataJS } = taskDataJS;
                             const updateDataDB = mapToDbTask(updateDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('tasks')
                                 .update(updateDataDB)
                                 .eq('id', updateDataJS.id)
@@ -1102,7 +1102,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                              insertDataJS.created = nowISO;
                              const insertDataDB = mapToDbTask(insertDataJS);
 
-                             const { data, error } = await supabase
+                             const { data, error } = await supabaseClient
                                 .from('tasks')
                                 .insert(insertDataDB)
                                 .select()
@@ -1134,7 +1134,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                         };
 
                         try {
-                          const { data, error } = await supabase
+                          const { data, error } = await supabaseClient
                             .from('tasks')
                             .update(updateDataDB)
                             .eq('id', taskId)
@@ -1182,7 +1182,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                     const newMemberDB = mapToDbTeamMember(newMemberJS); // Map before insert
 
                     try {
-                         const { data, error } = await supabase
+                         const { data, error } = await supabaseClient
                             .from('team_members')
                             .insert(newMemberDB)
                             .select()
@@ -1210,7 +1210,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                 async removeTeamMember(memberId, memberName) {
                     try {
                         // 1. Update tasks assigned to this member to unassigned (null)
-                        const { error: updateError } = await supabase
+                        const { error: updateError } = await supabaseClient
                             .from('tasks')
                             .update({ assigned_to: null, modified_at: new Date().toISOString() })
                             .eq('assigned_to', memberName); // Use name which is stored in tasks table
@@ -1218,7 +1218,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                         if (updateError) throw new Error(`Failed to unassign tasks: ${updateError.message}`);
 
                         // 2. Delete the team member
-                        const { error: deleteError } = await supabase
+                        const { error: deleteError } = await supabaseClient
                             .from('team_members')
                             .delete()
                             .eq('id', memberId);
