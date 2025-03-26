@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,6 +14,7 @@
   const supabaseUrl = 'https://qrzcujypjybpezlyondb.supabase.co';
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
   const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+</script>
 <script>
   async function fetchProjects() {
     const { data, error } = await supabase.from('projects').select('*');
@@ -62,30 +62,10 @@
     console.log('Team Members:', teamMembers);
     console.log('Sprints:', sprints);
     console.log('Tasks:', tasks);
-
   }
 
   showAllData();
 </script>
-
-<body>
-  <div id="project-list"></div>
-
-  <script>
-    async function displayProjects() {
-      const projects = await fetchProjects();
-      const projectList = document.getElementById('project-list');
-      projects.forEach(project => {
-        const item = document.createElement('div');
-        item.textContent = `${project.name} (${project.status})`;
-        projectList.appendChild(item);
-      });
-    }
-
-    displayProjects();
-  </script>
-</body>
-
 
 <script>
         tailwind.config = {
@@ -154,6 +134,25 @@
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
+  <div id="project-list"></div>
+
+  <script>
+    async function displayProjects() {
+      const projects = await fetchProjects();
+      const projectList = document.getElementById('project-list');
+      projects.forEach(project => {
+        const item = document.createElement('div');
+        item.textContent = `${project.name} (${project.status})`;
+        if (projectList) {
+            projectList.appendChild(item);
+        } else {
+            console.error("Element with id 'project-list' not found.");
+        }
+      });
+    }
+    document.addEventListener('DOMContentLoaded', displayProjects);
+  </script>
+
     <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen">
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -313,7 +312,7 @@
                             </div>
                         </div>
                     </template>
-                     <div x-show="projects.filter(p => p.status === selectedProjectStatusTab).length === 0" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+                    <div x-show="projects.filter(p => p.status === selectedProjectStatusTab).length === 0" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2" x-text="`No projects are currently '${selectedProjectStatusTab}'`"></h3>
                         <p class="text-gray-500 dark:text-gray-400 mb-4">Add a new project or update the status of existing ones.</p>
@@ -360,18 +359,7 @@
                                                 <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
                                             </div>
                                         </template>
-                                        <div class="absolute bottom-1 right-1 flex flex-col items-end space-y-0.5 z-10">
-                                            <template x-for="memberHours in getHoursPerMemberForDayAndTime(day, 'Morning')" :key="memberHours.name">
-                                                <span class="text-[0.6rem] font-medium px-1 py-0.5 rounded whitespace-nowrap"
-                                                      :style="{
-                                                          backgroundColor: getTeamMemberColor(memberHours.name === 'Unassigned' ? null : memberHours.name, 0.75),
-                                                          color: getContrastColor(getTeamMemberColor(memberHours.name === 'Unassigned' ? null : memberHours.name, 1))
-                                                      }"
-                                                      :title="memberHours.name + ': ' + memberHours.hours + 'h'">
-                                                    <span x-text="`${memberHours.name === 'Unassigned' ? 'Unas.' : memberHours.name.split(' ').map(n => n[0]).slice(0, 2).join('')}: ${memberHours.hours % 1 === 0 ? memberHours.hours : memberHours.hours.toFixed(1)}h`"></span>
-                                                </span>
-                                            </template>
-                                        </div>
+                                        <div x-show="getTotalHoursForDayAndTime(day, 'Morning') > 0" class="time-block-hours"><span x-text="getTotalHoursForDayAndTime(day, 'Morning') + 'h'"></span></div>
                                     </div>
                                     <div class="flex-1 p-2 overflow-y-auto time-block" :id="`block-${day}-Afternoon`" @dragover.prevent="handleDragOver($event)" @dragleave.prevent="handleDragLeave($event)" @drop.prevent="handleDrop($event, day, 'Afternoon')" @click="openAddTaskModalForSlot(day, 'Afternoon', $event)">
                                          <div class="add-task-indicator"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Add Task</div>
@@ -380,18 +368,7 @@
                                                 <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
                                             </div>
                                         </template>
-                                        <div class="absolute bottom-1 right-1 flex flex-col items-end space-y-0.5 z-10">
-                                            <template x-for="memberHours in getHoursPerMemberForDayAndTime(day, 'Afternoon')" :key="memberHours.name">
-                                                <span class="text-[0.6rem] font-medium px-1 py-0.5 rounded whitespace-nowrap"
-                                                      :style="{
-                                                          backgroundColor: getTeamMemberColor(memberHours.name === 'Unassigned' ? null : memberHours.name, 0.75),
-                                                          color: getContrastColor(getTeamMemberColor(memberHours.name === 'Unassigned' ? null : memberHours.name, 1))
-                                                      }"
-                                                      :title="memberHours.name + ': ' + memberHours.hours + 'h'">
-                                                     <span x-text="`${memberHours.name === 'Unassigned' ? 'Unas.' : memberHours.name.split(' ').map(n => n[0]).slice(0, 2).join('')}: ${memberHours.hours % 1 === 0 ? memberHours.hours : memberHours.hours.toFixed(1)}h`"></span>
-                                                </span>
-                                            </template>
-                                        </div>
+                                        <div x-show="getTotalHoursForDayAndTime(day, 'Afternoon') > 0" class="time-block-hours"><span x-text="getTotalHoursForDayAndTime(day, 'Afternoon') + 'h'"></span></div>
                                     </div>
                                 </div>
                                 <div class="p-2 bg-gray-50 dark:bg-gray-700 text-xs text-center border-t dark:border-gray-700 h-8 flex items-center justify-center text-gray-700 dark:text-gray-300"><span class="font-medium" x-text="getTotalHoursForDay(day) + 'h'"></span></div>
@@ -589,226 +566,4 @@
                         }
                     }, 500));
                 },
-                loadSampleData(){console.log("Loading sample data...");this.teamMembers=[{id:generateId(),name:'Alice Green',role:'Lead Developer',color:'#4F46E5'},{id:generateId(),name:'Bob White',role:'UI/UX Designer',color:'#DB2777'},{id:generateId(),name:'Charlie Black',role:'Project Manager',color:'#059669'},{id:generateId(),name:'David Grey',role:'QA Tester',color:'#F59E0B'}];const p1=generateId(),p2=generateId(),p3=generateId(),p4=generateId();this.projects.push({id:p1,name:'E-commerce Platform',description:'Build a new online store with modern features.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+90))),notes:'Integrate Stripe, focus on performance.',status:'In Progress',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p2,name:'Internal Dashboard',description:'Develop an internal tool for monitoring key metrics.',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+45))),notes:'',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p3,name:'Blog Migration',description:'Migrate legacy blog posts to new CMS.',priority:'Low',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+60))),notes:'Ensure redirects are set up.',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p4,name:'Mobile App Refactor',description:'Refactor codebase for the iOS and Android apps.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+120))),notes:'Improve performance and stability.',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});const s1=generateId(),s2=generateId(),s3=generateId(),s4=generateId(),s5=generateId();this.sprints.push({id:s1,projectId:p1,name:'Sprint 1 - Auth & UI Setup',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-7))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+7))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s2,projectId:p1,name:'Sprint 2 - Product Catalog',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+8))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+22))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s3,projectId:p2,name:'Dashboard Sprint 1 - Metrics API',startDate:this.formatDateForInput(new Date()),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+14))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s4,projectId:p4,name:'Refactor - Core Modules',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-30))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-16))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s5,projectId:p4,name:'Refactor - UI Polish',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-15))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-1))),created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Design login page',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',scheduledDay:'Monday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Implement JWT authentication',estimatedHours:8,dependencies:'Design login page',assignedTo:'Alice Green',status:'In Progress',scheduledDay:'Tuesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Setup basic UI components library',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'In Progress',scheduledDay:'Monday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s2,name:'Define product schema',estimatedHours:3,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s2,name:'Design product listing page',estimatedHours:5,dependencies:'',assignedTo:'Bob White',status:'Not Started',scheduledDay:'Thursday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Sprint planning meeting',estimatedHours:1,dependencies:'',assignedTo:'Charlie Black',status:'Done',scheduledDay:'',scheduledTimeBlock:'',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s3,name:'Define Metrics API endpoints',estimatedHours:4,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s3,name:'Setup dashboard project',estimatedHours:2,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Tuesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Test login flow',estimatedHours:3,dependencies:'Implement JWT authentication',assignedTo:'David Grey',status:'Not Started',scheduledDay:'Friday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s4,name:'Update dependency management',estimatedHours:8,dependencies:'',assignedTo:'Alice Green',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s5,name:'Implement new splash screen',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s5,name:'Fix animation glitches on profile page',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});},
-
-                handleDragStart(event,task){this.draggedTask=task;event.target.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',task.id);},
-                handleDragEnd(event){try{if(event.target&&event.target.classList.contains('dragging')){event.target.classList.remove('dragging');}}finally{this.draggedTask=null;document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}},
-                handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
-                handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
-                handleDrop(event,day,timeBlock){event.currentTarget.classList.remove('drag-over');if(!this.draggedTask)return;const taskId=event.dataTransfer.getData('text/plain');const taskIndex=this.tasks.findIndex(t=>t.id===taskId);if(taskIndex!==-1){const updatedTask={...this.tasks[taskIndex],scheduledDay:day,scheduledTimeBlock:timeBlock,modified:new Date().toISOString()};this.tasks.splice(taskIndex,1,updatedTask);}},
-
-                setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}},
-
-                resetProjectForm(){this.projectForm={id:null,name:'',description:'',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+30))),notes:'',status:'Not Started'};this.editingProject=false;},
-                editProject(project){this.projectForm={...project};this.editingProject=true;this.showAddProjectModal=true;},
-                saveProject(){if(!this.projectForm.name||!this.projectForm.deadline)return;if(this.editingProject){const index=this.projects.findIndex(p=>p.id===this.projectForm.id);if(index!==-1){this.projects.splice(index,1,{...this.projectForm,modified:new Date().toISOString()});}}else{this.projects.push({...this.projectForm,id:generateId(),created:new Date().toISOString(),modified:new Date().toISOString()});}this.showAddProjectModal=false;},
-                confirmDeleteProject(project){this.confirmTitle='Delete Project';this.confirmMessage=`Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;this.confirmAction=()=>this.deleteProject(project.id);this.showConfirmModal=true;},
-                deleteProject(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);this.tasks=this.tasks.filter(t=>!sprintIds.includes(t.sprintId));this.sprints=this.sprints.filter(s=>s.projectId!==projectId);this.projects=this.projects.filter(p=>p.id!==projectId);if(this.expandedProjectId===projectId){this.expandedProjectId=null;}},
-                calculateProjectProgress(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);const projectTasks=this.tasks.filter(t=>sprintIds.includes(t.sprintId));if(projectTasks.length===0)return 0;const completedTasks=projectTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/projectTasks.length)*100);},
-                getProjectNameById(projectId){return this.projects.find(p=>p.id===projectId)?.name||'Unknown Project';},
-
-                getSprintsForProject(projectId){const sprints=this.sprints.filter(s=>s.projectId===projectId);return[...sprints].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));},
-                resetSprintForm(projectId=null){const today=new Date();const twoWeeksLater=new Date();twoWeeksLater.setDate(today.getDate()+14);this.sprintForm={id:null,projectId:projectId||'',name:'',startDate:this.formatDateForInput(today),endDate:this.formatDateForInput(twoWeeksLater)};this.editingSprint=false;},
-                editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.showAddSprintModal=true;},
-                saveSprint(){if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate)return;if(this.editingSprint){const index=this.sprints.findIndex(s=>s.id===this.sprintForm.id);if(index!==-1){this.sprints.splice(index,1,{...this.sprints[index],name:this.sprintForm.name,startDate:this.sprintForm.startDate,endDate:this.sprintForm.endDate,modified:new Date().toISOString()});}}else{this.sprints.push({...this.sprintForm,id:generateId(),created:new Date().toISOString(),modified:new Date().toISOString()});}this.showAddSprintModal=false;},
-                confirmDeleteSprint(sprint){this.confirmTitle='Delete Sprint';this.confirmMessage=`Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;this.confirmAction=()=>this.deleteSprint(sprint.id);this.showConfirmModal=true;},
-                deleteSprint(sprintId){this.tasks=this.tasks.filter(t=>t.sprintId!==sprintId);this.sprints=this.sprints.filter(s=>s.id!==sprintId);if(this.expandedSprintId===sprintId){this.expandedSprintId=null;}},
-                calculateSprintProgress(sprintId){const sprintTasks=this.getTasksForSprint(sprintId);if(sprintTasks.length===0)return 0;const completedTasks=sprintTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/sprintTasks.length)*100);},
-                countTasksByStatus(sprintId,status){return this.getTasksForSprint(sprintId).filter(t=>t.status===status).length;},
-                countActiveSprints(){const todayStr=this.formatDateForInput(new Date());return this.sprints.filter(sprint=>sprint.startDate<=todayStr&&sprint.endDate>=todayStr).length;},
-
-                getTasksForSprint(sprintId){
-                    return this.tasks.filter(t => t.sprintId === sprintId)
-                        .sort((a, b) => {
-                             const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
-                             const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
-                             if (statusDiff !== 0) return statusDiff;
-                             return a.name.localeCompare(b.name);
-                        });
-                },
-                resetTaskForm() {
-                    this.taskForm = {
-                        id: null,
-                        selectedProjectIdForTask: '',
-                        sprintId: '',
-                        name: '',
-                        estimatedHours: 1,
-                        dependencies: '',
-                        assignedTo: '',
-                        status: 'Not Started',
-                        scheduledDay: '',
-                        scheduledTimeBlock: '',
-                        prefilledProjectId: false,
-                        prefilledSprintId: false
-                    };
-                    this.editingTask = false;
-                },
-                editTask(task){
-                    this.resetTaskForm();
-                    const sprint = this.sprints.find(s => s.id === task.sprintId);
-                    this.taskForm = {
-                        ...task,
-                        selectedProjectIdForTask: sprint ? sprint.projectId : '',
-                        prefilledProjectId: true,
-                        prefilledSprintId: true
-                    };
-                    this.editingTask = true;
-                    this.showAddTaskModal = true;
-                },
-                openAddTaskModalForSlot(day,timeBlock,event){
-                    if(event && event.target.closest('.calendar-task')){return;}
-                    this.resetTaskForm();
-                    this.taskForm.scheduledDay = day;
-                    this.taskForm.scheduledTimeBlock = timeBlock;
-                    this.showAddTaskModal = true;
-                },
-                openAddTaskForSprint(sprintId, projectId) {
-                    this.resetTaskForm();
-                    this.taskForm.selectedProjectIdForTask = projectId;
-                    this.taskForm.sprintId = sprintId;
-                    this.taskForm.prefilledProjectId = true;
-                    this.taskForm.prefilledSprintId = true;
-                    this.showAddTaskModal = true;
-                },
-                saveTask(){if(!this.taskForm.name||!this.taskForm.selectedProjectIdForTask||!this.taskForm.sprintId||this.taskForm.estimatedHours<=0){alert('Please fill all required fields (Name, Project, Sprint, Est. Hours).');return;}if(this.taskForm.scheduledDay&&!this.taskForm.scheduledTimeBlock){alert('Please select a Time Block if scheduling for a Day.');return;}if(!this.taskForm.scheduledDay){this.taskForm.scheduledTimeBlock='';}
-                    const taskDataToSave = { ...this.taskForm };
-                    delete taskDataToSave.selectedProjectIdForTask;
-                    delete taskDataToSave.prefilledProjectId;
-                    delete taskDataToSave.prefilledSprintId;
-
-                    if(this.editingTask){
-                        const index = this.tasks.findIndex(t => t.id === taskDataToSave.id);
-                        if(index !== -1){
-                             taskDataToSave.sprintId = this.tasks[index].sprintId;
-                             this.tasks.splice(index, 1, { ...taskDataToSave, modified: new Date().toISOString() });
-                        }
-                    } else {
-                        this.tasks.push({ ...taskDataToSave, id: generateId(), created: new Date().toISOString(), modified: new Date().toISOString() });
-                    }
-                    this.showAddTaskModal = false;
-                },
-                confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
-                deleteTask(taskId){this.tasks=this.tasks.filter(t=>t.id!==taskId);},
-                countAllTasksByStatus(status){return this.tasks.filter(t=>t.status===status).length;},
-
-                resetTeamMemberForm(){this.teamMemberForm={name:'',role:'',color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')};},
-                addTeamMember(){if(!this.teamMemberForm.name||!this.teamMemberForm.role)return;if(this.teamMembers.some(m=>m.name.toLowerCase()===this.teamMemberForm.name.toLowerCase())){alert('A team member with this name already exists.');return;}this.teamMembers.push({...this.teamMemberForm,id:generateId()});this.resetTeamMemberForm();},
-                removeTeamMember(memberId){const member=this.teamMembers.find(m=>m.id===memberId);if(!member)return;this.confirmTitle='Remove Team Member';this.confirmMessage=`Are you sure you want to remove ${member.name}? Tasks assigned to them will become unassigned.`;this.confirmAction=()=>{this.tasks=this.tasks.map(task=>task.assignedTo===member.name?{...task,assignedTo:'',modified:new Date().toISOString()}:task);this.teamMembers=this.teamMembers.filter(m=>m.id!==memberId);if(this.selectedTeamMember===memberId)this.selectedTeamMember=null;};this.showConfirmModal=true;},
-                countTasksAssignedToMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).length;},
-                calculateTotalHoursForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                countCompletedTasksForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName&&t.status==='Done').length;},
-                getTeamMemberNameById(id){return this.teamMembers.find(m=>m.id===id)?.name||'';},
-                getTeamMemberColor(name,alpha=0.2){const defaultColor=document.documentElement.classList.contains('dark')?`rgba(75, 85, 99, ${alpha})`:`rgba(209, 213, 219, ${alpha})`;if(!name)return defaultColor;const member=this.teamMembers.find(m=>m.name===name);const hexColor=member?member.color:'#9ca3af';let r=0,g=0,b=0;if(hexColor.length===4){r=parseInt(hexColor[1]+hexColor[1],16);g=parseInt(hexColor[2]+hexColor[2],16);b=parseInt(hexColor[3]+hexColor[3],16);}else if(hexColor.length===7){r=parseInt(hexColor[1]+hexColor[2],16);g=parseInt(hexColor[3]+hexColor[4],16);b=parseInt(hexColor[5]+hexColor[6],16);}else{return defaultColor;}return`rgba(${r}, ${g}, ${b}, ${alpha})`;},
-                getTaskPriorityColor(task) {
-                    const priority = this.getTaskPriority(task);
-                    switch (priority) {
-                        case 'High': return '#ef4444';
-                        case 'Medium': return '#f59e0b';
-                        case 'Low': return '#10b981';
-                        default: return '#9ca3af';
-                    }
-                },
-                 getContrastColor(bgColor) {
-                    if (!bgColor) return '#1f2937';
-
-                    const parseColor = (color) => {
-                        if (color.startsWith('rgba')) {
-                            const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
-                            return parts ? { r: parseInt(parts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
-                        } else if (color.startsWith('#')) {
-                            let hex = color.substring(1);
-                            if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
-                            if (hex.length === 6) {
-                                return {
-                                    r: parseInt(hex.substring(0, 2), 16),
-                                    g: parseInt(hex.substring(2, 4), 16),
-                                    b: parseInt(hex.substring(4, 6), 16)
-                                };
-                            }
-                        }
-                        return null;
-                    };
-
-                    const rgb = parseColor(bgColor);
-                    if (!rgb) return '#1f2937';
-
-                    const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
-
-                    return luminance > 0.5 ? '#1f2937' : '#ffffff';
-                },
-
-                get scheduledTasksForWeek(){const currentDisplayedDays=this.daysOfWeek;const mondayOfViewWeek = this.getMonday(this.calendarDate); const fridayOfViewWeek = new Date(mondayOfViewWeek); fridayOfViewWeek.setDate(mondayOfViewWeek.getDate() + 4); return this.tasks.filter(task=>{if(!task.scheduledDay||!task.scheduledTimeBlock)return false; const taskDateIndex = this.daysOfWeek.indexOf(task.scheduledDay); if (taskDateIndex === -1) return false; const taskDate = new Date(mondayOfViewWeek); taskDate.setDate(mondayOfViewWeek.getDate() + taskDateIndex); if (taskDate < mondayOfViewWeek || taskDate > fridayOfViewWeek) return false; const memberMatch=this.selectedTeamMember===null||task.assignedTo===this.getTeamMemberNameById(this.selectedTeamMember);return memberMatch;});},
-                getTasksForDayAndTime(day,timeBlock){const filteredTasks=this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock);const priorityOrder={'High':0,'Medium':1,'Low':2};const statusOrder={'Not Started':0,'In Progress':1,'Blocked':2,'Done':3};return[...filteredTasks].sort((a,b)=>{const priorityA=this.getTaskPriority(a);const priorityB=this.getTaskPriority(b);const priorityDiff=(priorityOrder[priorityA]??99)-(priorityOrder[priorityB]??99);if(priorityDiff!==0)return priorityDiff;const statusDiff=statusOrder[a.status]-statusOrder[b.status];if(statusDiff!==0)return statusDiff;return a.name.localeCompare(b.name);});},
-                 getHoursPerMemberForDayAndTime(day, timeBlock) {
-                    const mondayOfViewWeek = this.getMonday(this.calendarDate);
-                    const tasksInBlock = this.tasks.filter(task =>
-                        task.scheduledDay === day &&
-                        task.scheduledTimeBlock === timeBlock &&
-                        this.isTaskInCurrentWeek(task, mondayOfViewWeek)
-                    );
-                    const hoursByMember = {};
-                    tasksInBlock.forEach(task => {
-                        const memberName = task.assignedTo || 'Unassigned';
-                        const hours = Number(task.estimatedHours) || 0;
-                        if (hours > 0) {
-                            hoursByMember[memberName] = (hoursByMember[memberName] || 0) + hours;
-                        }
-                    });
-                    const result = Object.entries(hoursByMember)
-                        .map(([name, hours]) => ({ name, hours }))
-                        .filter(item => item.hours > 0)
-                        .sort((a, b) => {
-                            if (a.name === 'Unassigned' && b.name !== 'Unassigned') return 1;
-                            if (a.name !== 'Unassigned' && b.name === 'Unassigned') return -1;
-                            return a.name.localeCompare(b.name);
-                        });
-                    return result;
-                },
-                getTaskPriority(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return null;const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.priority:null;},
-                getProjectNameForTask(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return'Unknown Project';const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.name:'Unknown Project';},
-                getTotalHoursForDayAndTime(day,timeBlock){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                getTotalHoursForDay(day){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                getTotalWeeklyHours(){return this.scheduledTasksForWeek.reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                previousWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()-7);this.calendarDate=newDate;},
-                nextWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()+7);this.calendarDate=newDate;},
-                formatWeekRange(){const startOfWeek=this.getMonday(this.calendarDate);const endOfWeek=new Date(startOfWeek);endOfWeek.setDate(startOfWeek.getDate()+(this.daysOfWeek.length-1));const options={month:'short',day:'numeric'};const startStr=startOfWeek.toLocaleDateString('en-US',options);const endStr=endOfWeek.toLocaleDateString('en-US',options);const year=endOfWeek.getFullYear();return`${startStr} - ${endStr}, ${year}`;},
-                formatDayDate(dayIndex){const date=this.getMonday(this.calendarDate);date.setDate(date.getDate()+dayIndex);return`${date.getMonth()+1}/${date.getDate()}`;},
-                getMonday(d){const date=new Date(d);const day=date.getDay();const diff=date.getDate()-day+(day===0?-6:1);const monday=new Date(date.setDate(diff));monday.setHours(0,0,0,0);return monday;},
-                getWeeklyTasks(){return this.scheduledTasksForWeek;},
-                countWeeklyTasksByStatus(status){return this.getWeeklyTasks().filter(task=>task.status===status).length;},
-                countWeeklyTasksByPriority(priority){return this.getWeeklyTasks().filter(task=>this.getTaskPriority(task)===priority).length;},
-
-                destroyCharts(){if(this.taskStatusChartInstance){this.taskStatusChartInstance.destroy();this.taskStatusChartInstance=null;}if(this.weeklyWorkloadChartInstance){this.weeklyWorkloadChartInstance.destroy();this.weeklyWorkloadChartInstance=null;}},
-                initCharts(){this.$nextTick(()=>{this.destroyCharts();this.initTaskStatusChart();this.initWeeklyWorkloadChart();});},
-                initTaskStatusChart(){const ctx=document.getElementById('taskStatusChart')?.getContext('2d');if(!ctx)return;const statuses=['Not Started','In Progress','Blocked','Done'];const counts=statuses.map(status=>this.countAllTasksByStatus(status));const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';this.taskStatusChartInstance=new Chart(ctx,{type:'doughnut',data:{labels:statuses,datasets:[{data:counts,backgroundColor:[isDarkMode?'rgba(107, 114, 128, 0.7)':'rgba(156, 163, 175, 0.8)',isDarkMode?'rgba(96, 165, 250, 0.7)':'rgba(59, 130, 246, 0.8)',isDarkMode?'rgba(248, 113, 113, 0.7)':'rgba(239, 68, 68, 0.8)',isDarkMode?'rgba(52, 211, 153, 0.7)':'rgba(16, 185, 129, 0.8)'],borderColor:isDarkMode?'#1f2937':'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,padding:15,boxWidth:12,}},tooltip:{callbacks:{label:function(context){let label=context.label||'';if(label){label+=': ';}if(context.parsed!==null){label+=context.parsed;}const total=context.dataset.data.reduce((a,b)=>a+b,0);const percentage=total>0?Math.round((context.parsed/total)*100):0;label+=` (${percentage}%)`;return label;}}}}}});},
-                initWeeklyWorkloadChart(){const ctx=document.getElementById('weeklyWorkloadChart')?.getContext('2d');if(!ctx)return;const originalFilter=this.selectedTeamMember;this.selectedTeamMember=null;
-                const mondayOfViewWeek = this.getMonday(this.calendarDate);
-                const dailyHours=this.daysOfWeek.map((day, index)=>{
-                    const currentDay = new Date(mondayOfViewWeek);
-                    currentDay.setDate(mondayOfViewWeek.getDate() + index);
-                    return this.tasks.filter(task => task.scheduledDay === day && this.isTaskInCurrentWeek(task, mondayOfViewWeek))
-                                .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
-                 });
-                this.selectedTeamMember=originalFilter;
-
-                const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';const gridColor=isDarkMode?'rgba(255, 255, 255, 0.1)':'rgba(0, 0, 0, 0.05)';const barColor=isDarkMode?'rgba(129, 128, 228, 0.7)':'rgba(93, 92, 222, 0.8)';this.weeklyWorkloadChartInstance=new Chart(ctx,{type:'bar',data:{labels:this.daysOfWeek.map(d=>d.substring(0,3)),datasets:[{label:'Est. Hours Scheduled',data:dailyHours,backgroundColor:barColor,borderRadius:4,}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor},title:{display:true,text:'Hours',color:textColor}},x:{grid:{display:false},ticks:{color:textColor}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(context){return` ${context.parsed.y} hours`;}}}}}});},
-                updateCharts(){if(this.currentView==='dashboard'){this.initCharts();}},
-                isTaskInCurrentWeek(task, mondayOfViewWeek) {
-                     if (!task.scheduledDay) return false;
-                     const taskDateIndex = this.daysOfWeek.indexOf(task.scheduledDay);
-                     if (taskDateIndex === -1) return false;
-                     const taskDate = new Date(mondayOfViewWeek);
-                     taskDate.setDate(mondayOfViewWeek.getDate() + taskDateIndex);
-                     const fridayOfViewWeek = new Date(mondayOfViewWeek);
-                     fridayOfViewWeek.setDate(mondayOfViewWeek.getDate() + 4);
-                     return taskDate >= mondayOfViewWeek && taskDate <= fridayOfViewWeek;
-                 },
-                formatDate(dateString){if(!dateString)return'N/A';try{const date=new Date(dateString+'T00:00:00');if(isNaN(date))return'Invalid Date';return date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}catch(e){console.error("Error formatting date:",dateString,e);return'Invalid Date';}},
-                formatDateForInput(date){if(!date||!(date instanceof Date)||isNaN(date))return'';try{return date.toISOString().split('T')[0];}catch(e){console.error("Error formatting date for input:",date,e);return'';}}
-            };
-        }
-    </script>
-
-</body>
-</html>
-```
+                loadSampleData(){console.log("Loading sample data...");this.teamMembers=[{id:generateId(),name:'Alice Green',role:'Lead Developer',color:'#4F46E5'},{id:generateId(),name:'Bob White',role:'UI/UX Designer',color:'#DB2777'},{id:generateId(),name:'Charlie Black',role:'Project Manager',color:'#059669'},{id:generateId(),name:'David Grey',role:'QA Tester',color:'#F59E0B'}];const p1=generateId(),p2=generateId(),p3=generateId(),p4=generateId();this.projects.push({id:p1,name:'E-commerce Platform',description:'Build a new online store with modern features.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+90))),notes:'Integrate Stripe, focus on performance.',status:'In Progress',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p2,name:'Internal Dashboard',description:'Develop an internal tool for monitoring key metrics.',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+45))),notes:'',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p3,name:'Blog Migration',description:'Migrate legacy blog posts to new CMS.',priority:'Low',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+60))),notes:'Ensure redirects are set up.',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p4,name:'Mobile App Refactor',description:'Refactor codebase for the iOS and Android apps.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+120))),notes:'Improve performance and stability.',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});const s1=generateId(),s2=generateId(),s3=generateId(),s4=generateId(),s5=generateId();this.sprints.push({id:s1,projectId:p1,name:'Sprint 1 - Auth & UI Setup',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-7))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+7))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s2,projectId:p1,name:'Sprint 2 - Product Catalog',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+8))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+22))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s3,projectId:p2,name:'Dashboard Sprint 1 - Metrics API',startDate:this.formatDateForInput(new Date()),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+14))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s4,projectId:p4,name:'Refactor - Core Modules',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-30))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-16))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s5,projectId:p4,name:'Refactor - UI Polish',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-15))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-1))),created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Design login page',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',scheduledDay:'Monday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Implement JWT authentication',estimatedHours:8,dependencies:'Design login page',assignedTo:'Alice Green',status:'In Progress',scheduledDay:'Tuesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString
