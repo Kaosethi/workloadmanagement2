@@ -25,11 +25,11 @@
           status: project.status,
           modified_at: project.modified || new Date().toISOString()
         };
-        if (!project.id) { // Only add created_at for new records
+        if (!project.id) {
             data.created_at = project.created || new Date().toISOString();
         }
         if (project.id) {
-            data.id = project.id; // Include ID for updates
+            data.id = project.id;
         }
         return data;
       }
@@ -595,7 +595,8 @@
                     <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingTask ? 'Edit Task' : 'Add New Task'"></h2><button @click="showAddTaskModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
                     <form @submit.prevent="saveTask()">
                         <div class="mb-4"><label for="taskProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><select id="taskProject" x-model="taskForm.selectedProjectIdForTask" @change="taskForm.sprintId = ''" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" :disabled="taskForm.prefilledProjectId"><option value="" disabled>-- Select a Project --</option><template x-for="project in projects" :key="project.id"><option :value="project.id" x-text="project.name"></option></template></select></div>
-                        <div class="mb-4"><label for="taskSprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label><select id="taskSprint" x-model="taskForm.sprintId" required :disabled="!taskForm.selectedProjectIdForTask || getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0 || taskForm.prefilledSprintId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="" disabled>-- Select a Sprint --</option><template x-for="sprint in getSprintsForProject(taskForm.selectedProjectIdForTask)" :key="sprint.id"><option :value="sprint.id" x-text="sprint.name"></option></template></select><p x-show="taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No sprints found for the selected project. Add a sprint first.</p></div>
+                        <div class="mb-4"><label for="taskSprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label><select id="taskSprint" x-model="taskForm.sprintId" required :disabled="!taskForm.selectedProjectIdForTask || getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0 || taskForm.prefilledSprintId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline
+-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="" disabled>-- Select a Sprint --</option><template x-for="sprint in getSprintsForProject(taskForm.selectedProjectIdForTask)" :key="sprint.id"><option :value="sprint.id" x-text="sprint.name"></option></template></select><p x-show="taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No sprints found for the selected project. Add a sprint first.</p></div>
                         <div class="mb-4"><label for="taskName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label><input type="text" id="taskName" x-model="taskForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"><div><label for="taskEstimatedHours" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Hours</label><input type="number" id="taskEstimatedHours" x-model.number="taskForm.estimatedHours" min="0.5" step="0.5" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="taskStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="taskStatus" x-model="taskForm.status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="Not Started">Not Started</option> <option value="In Progress">In Progress</option> <option value="Blocked">Blocked</option> <option value="Done">Done</option></select></div><div><label for="taskAssignedTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To</label><select id="taskAssignedTo" x-model="taskForm.assignedTo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Unassigned</option><template x-for="member in teamMembers" :key="member.id"><option :value="member.name" x-text="member.name"></option></template></select></div></div>
                         <div class="mb-4"><label for="taskDependencies" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dependencies (Optional)</label><input type="text" id="taskDependencies" x-model="taskForm.dependencies" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" placeholder="e.g. 'Task A, Task B'"></div>
@@ -658,7 +659,7 @@
                      class="fixed inset-0 bg-black/50 dark:bg-black/70 transition-opacity"
                      @click="closeDatePicker()"></div>
 
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">​</span>
                 <div x-show="showDatePickerModal"
                      x-transition:enter="ease-out duration-300"
                      x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -725,6 +726,10 @@
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
         function app() {
+             // Ensure supabase client is available in this scope
+            const { createClient } = supabase;
+            const supabaseClient = createClient(supabaseUrl, supabaseKey);
+
             return {
                 currentView: 'projects',
                 expandedProjectId: null,
@@ -745,7 +750,7 @@
                 taskStatusChartInstance: null, weeklyWorkloadChartInstance: null,
                 showDatePickerModal: false,
                 datePickerDate: new Date(),
-                isLoading: true, // Added loading state
+                isLoading: true,
 
                 async initApp() {
                     window.appInstance = this;
@@ -753,13 +758,11 @@
                     this.resetSprintForm();
                     this.resetTaskForm();
                     this.resetTeamMemberForm();
-
-                    await this.loadDataFromSupabase(); // Load data on init
-
+                    await this.loadDataFromSupabase();
                     if (this.currentView === 'dashboard') {
                         this.$nextTick(() => this.initCharts());
                     }
-                    this.isLoading = false; // Set loading to false after data is loaded
+                    this.isLoading = false;
                 },
 
                 async loadDataFromSupabase() {
@@ -772,20 +775,17 @@
                             fetchSprints(),
                             fetchTasks()
                         ]);
-
                         this.projects = projectsData || [];
                         this.teamMembers = teamMembersData || [];
                         this.sprints = sprintsData || [];
                         this.tasks = tasksData || [];
                         console.log("Loaded data from Supabase into Alpine state.");
-
                     } catch (error) {
                         console.error("Error loading data from Supabase:", error);
                         alert("Failed to load initial data. Please check the console and refresh.");
-                        // Optionally load sample data as fallback: this.loadSampleData();
                     } finally {
                          this.isLoading = false;
-                         this.$nextTick(() => this.updateCharts()); // Update charts after data load attempt
+                         this.$nextTick(() => this.updateCharts());
                     }
                 },
 
@@ -800,40 +800,35 @@
                         const targetWeekId = this.getMonday(this.calendarDate).toISOString();
                         const originalTask = this.tasks[taskIndex];
 
-                        // Prepare updated data for DB
                         const updatedData = {
-                            ...mapToDbTask(originalTask), // Map original task to DB format first
+                            ...mapToDbTask(originalTask),
                             scheduled_day: day,
                             scheduled_time_block: timeBlock,
                             scheduled_week_id: targetWeekId,
                             modified_at: new Date().toISOString()
                         };
-                        // Remove id from updatedData if your DB handles it on update
-                        // delete updatedData.id;
 
                         console.log("Updating task schedule in DB:", updatedData);
 
                         try {
-                            const { data: updatedDbTask, error } = await supabase
+                            const { data: updatedDbTask, error } = await supabaseClient
                                 .from('tasks')
                                 .update(updatedData)
                                 .eq('id', taskId)
-                                .select() // Return the updated row
-                                .single(); // Expect single result
+                                .select()
+                                .single();
 
                             if (error) throw error;
 
                             console.log("DB update successful:", updatedDbTask);
 
-                            // Update local state ONLY after successful DB update
-                            const updatedLocalTask = mapFromDbTask(updatedDbTask); // Map DB result back
+                            const updatedLocalTask = mapFromDbTask(updatedDbTask);
                             this.tasks.splice(taskIndex, 1, updatedLocalTask);
-                            this.draggedTask = null; // Clear dragged task
+                            this.draggedTask = null;
 
                         } catch (error) {
                             console.error('Error updating task schedule in DB:', error);
                             alert(`Failed to update task schedule: ${error.message}`);
-                            // Local state remains unchanged if DB update fails
                         }
                     }
                 },
@@ -856,7 +851,7 @@
                     try {
                         if(this.editingProject){
                              const projectDataDB = mapToDbProject(projectDataJS);
-                             const { data, error } = await supabase
+                             const { data, error } = await supabaseClient
                                 .from('projects')
                                 .update(projectDataDB)
                                 .eq('id', projectDataJS.id)
@@ -871,12 +866,11 @@
                                 this.projects.splice(index, 1, updatedProject);
                             }
                         } else {
-                            // Omit id for insert
                             const { id, ...insertDataJS } = projectDataJS;
-                            insertDataJS.created = nowISO; // Ensure created timestamp
+                            insertDataJS.created = nowISO;
                             const insertDataDB = mapToDbProject(insertDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('projects')
                                 .insert(insertDataDB)
                                 .select()
@@ -885,42 +879,37 @@
                             if (error) throw error;
 
                             const newProject = mapFromDbProject(data);
-                            this.projects.unshift(newProject); // Add to start of list
+                            this.projects.unshift(newProject);
                         }
                         this.showAddProjectModal = false;
-                        this.updateCharts(); // Update dashboard if needed
+                        this.updateCharts();
                     } catch (error) {
                         console.error('Error saving project:', error);
-                        alert(`Failed to save project: ${error.message}`);
+                        alert(`Failed to save project: ${error.message || error}`);
                     }
                 },
                 confirmDeleteProject(project){this.confirmTitle='Delete Project';this.confirmMessage=`Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;this.confirmAction=()=>this.deleteProject(project.id);this.showConfirmModal=true;},
                 async deleteProject(projectId){
                     try {
-                        // Get related sprint IDs first
                         const sprintIds = this.sprints.filter(s => s.projectId === projectId).map(s => s.id);
 
-                        // Delete Tasks associated with those Sprints (if any)
                         if (sprintIds.length > 0) {
-                            const { error: taskError } = await supabase.from('tasks').delete().in('sprint_id', sprintIds);
+                            const { error: taskError } = await supabaseClient.from('tasks').delete().in('sprint_id', sprintIds);
                             if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
                         }
 
-                        // Delete Sprints associated with the Project
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('project_id', projectId);
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('project_id', projectId);
                         if (sprintError) throw new Error(`Failed to delete sprints: ${sprintError.message}`);
 
-                        // Delete the Project itself
-                        const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
+                        const { error: projectError } = await supabaseClient.from('projects').delete().eq('id', projectId);
                         if (projectError) throw new Error(`Failed to delete project: ${projectError.message}`);
 
-                        // If all DB operations succeeded, update local state
                         this.tasks = this.tasks.filter(t => !sprintIds.includes(t.sprintId));
                         this.sprints = this.sprints.filter(s => s.projectId !== projectId);
                         this.projects = this.projects.filter(p => p.id !== projectId);
 
                         if (this.expandedProjectId === projectId) { this.expandedProjectId = null; }
-                        this.updateCharts(); // Update dashboard
+                        this.updateCharts();
 
                     } catch (error) {
                         console.error('Error deleting project and related items:', error);
@@ -932,7 +921,8 @@
 
                 getSprintsForProject(projectId){const sprints=this.sprints.filter(s=>s.projectId===projectId);return[...sprints].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));},
                 resetSprintForm(projectId=null){const today=new Date();const twoWeeksLater=new Date();twoWeeksLater.setDate(today.getDate()+14);this.sprintForm={id:null,projectId:projectId||'',name:'',startDate:this.formatDateForInput(today),endDate:this.formatDateForInput(twoWeeksLater)};this.editingSprint=false;},
-                editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.showAddSprintModal=true;},
+                editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.
+showAddSprintModal=true;},
                 async saveSprint(){
                     if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate) { alert('Please fill all required fields and ensure End Date is after Start Date.'); return; }
 
@@ -942,7 +932,7 @@
                     try {
                         if(this.editingSprint){
                             const sprintDataDB = mapToDbSprint(sprintDataJS);
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
                                 .update(sprintDataDB)
                                 .eq('id', sprintDataJS.id)
@@ -961,7 +951,7 @@
                              insertDataJS.created = nowISO;
                              const insertDataDB = mapToDbSprint(insertDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('sprints')
                                 .insert(insertDataDB)
                                 .select()
@@ -970,7 +960,7 @@
                             if (error) throw error;
 
                             const newSprint = mapFromDbSprint(data);
-                            this.sprints.push(newSprint); // Consider sorting or unshift if needed
+                            this.sprints.push(newSprint);
                         }
                         this.showAddSprintModal = false;
                     } catch (error) {
@@ -981,15 +971,12 @@
                 confirmDeleteSprint(sprint){this.confirmTitle='Delete Sprint';this.confirmMessage=`Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;this.confirmAction=()=>this.deleteSprint(sprint.id);this.showConfirmModal=true;},
                 async deleteSprint(sprintId){
                     try {
-                        // Delete tasks first
-                        const { error: taskError } = await supabase.from('tasks').delete().eq('sprint_id', sprintId);
+                        const { error: taskError } = await supabaseClient.from('tasks').delete().eq('sprint_id', sprintId);
                         if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
 
-                        // Then delete the sprint
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('id', sprintId);
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('id', sprintId);
                         if (sprintError) throw new Error(`Failed to delete sprint: ${sprintError.message}`);
 
-                        // Update local state on success
                         this.tasks = this.tasks.filter(t => t.sprintId !== sprintId);
                         this.sprints = this.sprints.filter(s => s.id !== sprintId);
 
@@ -1070,12 +1057,10 @@
                          modified: nowISO
                     };
 
-                     // Ensure schedule consistency
                      if (!taskDataJS.scheduledDay) {
                          taskDataJS.scheduledTimeBlock = '';
                          taskDataJS.scheduledWeekId = null;
                      } else {
-                         // Recalculate weekId based on current calendar view when saving scheduled task
                          taskDataJS.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
                      }
 
@@ -1084,7 +1069,7 @@
                             const { selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...updateDataJS } = taskDataJS;
                             const updateDataDB = mapToDbTask(updateDataJS);
 
-                            const { data, error } = await supabase
+                            const { data, error } = await supabaseClient
                                 .from('tasks')
                                 .update(updateDataDB)
                                 .eq('id', updateDataJS.id)
@@ -1103,7 +1088,7 @@
                              insertDataJS.created = nowISO;
                              const insertDataDB = mapToDbTask(insertDataJS);
 
-                             const { data, error } = await supabase
+                             const { data, error } = await supabaseClient
                                 .from('tasks')
                                 .insert(insertDataDB)
                                 .select()
@@ -1112,10 +1097,10 @@
                              if (error) throw error;
 
                              const newTask = mapFromDbTask(data);
-                             this.tasks.push(newTask); // Add to end
+                             this.tasks.push(newTask);
                         }
                         this.showAddTaskModal = false;
-                        this.updateCharts(); // Update relevant charts
+                        this.updateCharts();
                     } catch (error) {
                          console.error('Error saving task:', error);
                          alert(`Failed to save task: ${error.message}`);
@@ -1135,7 +1120,7 @@
                         };
 
                         try {
-                          const { data, error } = await supabase
+                          const { data, error } = await supabaseClient
                             .from('tasks')
                             .update(updateDataDB)
                             .eq('id', taskId)
@@ -1162,11 +1147,11 @@
                 confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
                 async deleteTask(taskId){
                     try {
-                        const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+                        const { error } = await supabaseClient.from('tasks').delete().eq('id', taskId);
                         if (error) throw error;
 
                         this.tasks = this.tasks.filter(t => t.id !== taskId);
-                        this.updateCharts(); // Update relevant charts
+                        this.updateCharts();
                     } catch (error) {
                         console.error('Error deleting task:', error);
                         alert(`Failed to delete task: ${error.message}`);
@@ -1180,10 +1165,10 @@
                     if(this.teamMembers.some(m=>m.name.toLowerCase()===this.teamMemberForm.name.toLowerCase())){alert('A team member with this name already exists.');return;}
 
                     const newMemberJS = {...this.teamMemberForm};
-                    const newMemberDB = mapToDbTeamMember(newMemberJS); // Map before insert
+                    const newMemberDB = mapToDbTeamMember(newMemberJS);
 
                     try {
-                         const { data, error } = await supabase
+                         const { data, error } = await supabaseClient
                             .from('team_members')
                             .insert(newMemberDB)
                             .select()
@@ -1210,23 +1195,20 @@
                 },
                 async removeTeamMember(memberId, memberName) {
                     try {
-                        // 1. Update tasks assigned to this member to unassigned (null)
-                        const { error: updateError } = await supabase
+                        const { error: updateError } = await supabaseClient
                             .from('tasks')
                             .update({ assigned_to: null, modified_at: new Date().toISOString() })
-                            .eq('assigned_to', memberName); // Use name which is stored in tasks table
+                            .eq('assigned_to', memberName);
 
                         if (updateError) throw new Error(`Failed to unassign tasks: ${updateError.message}`);
 
-                        // 2. Delete the team member
-                        const { error: deleteError } = await supabase
+                        const { error: deleteError } = await supabaseClient
                             .from('team_members')
                             .delete()
                             .eq('id', memberId);
 
                         if (deleteError) throw new Error(`Failed to delete member: ${deleteError.message}`);
 
-                        // 3. Update local state if DB operations were successful
                         this.tasks = this.tasks.map(task =>
                             task.assignedTo === memberName
                             ? { ...task, assignedTo: '', modified: new Date().toISOString() }
@@ -1235,7 +1217,7 @@
                         this.teamMembers = this.teamMembers.filter(m => m.id !== memberId);
 
                         if (this.selectedTeamMember === memberId) this.selectedTeamMember = null;
-                        this.updateCharts(); // Update dashboard etc.
+                        this.updateCharts();
 
                     } catch (error) {
                         console.error('Error removing team member:', error);
@@ -1261,7 +1243,7 @@
                     const parseColor = (color) => {
                         if (color.startsWith('rgba')) {
                             const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
-                            return parts ? { r: parseInt(parts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
+                            return parts ? { r: parseIntparts[1]), g: parseInt(parts[2]), b: parseInt(parts[3]) } : null;
                         } else if (color.startsWith('#')) {
                             let hex = color.substring(1);
                             if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
@@ -1276,9 +1258,9 @@
                         return null;
                     };
                     const rgb = parseColor(bgColor);
-                    if (!rgb) return '#1f2937';
+                    if (!rgb) return '#1f2937'; // Default dark text
                     const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
-                    return luminance > 0.5 ? '#1f2937' : '#ffffff';
+                    return luminance > 0.5 ? '#1f2937' : '#ffffff'; // Dark text for light bg, White text for dark bg
                 },
                 get scheduledTasksForWeek(){
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
@@ -1390,21 +1372,23 @@
                     const firstDayOfMonth = new Date(year, month, 1);
                     const daysInMonth = new Date(year, month + 1, 0).getDate();
                     let startDayOfWeek = firstDayOfMonth.getDay();
-                    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1;
+                    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1; // Adjust to Monday start
 
                     const days = [];
                     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
+                    // Days from previous month
                     for (let i = startDayOfWeek - 1; i >= 0; i--) {
                         days.push({
                             date: new Date(year, month - 1, daysInPrevMonth - i),
                             dayOfMonth: daysInPrevMonth - i,
                             isCurrentMonth: false,
                             isToday: false,
-                            isInCurrentWeek: false
+                            isInCurrentWeek: false // Not relevant for previous month days
                         });
                     }
 
+                    // Days from current month
                     for (let i = 1; i <= daysInMonth; i++) {
                         const currentDate = new Date(year, month, i);
                         days.push({
@@ -1416,6 +1400,7 @@
                         });
                     }
 
+                    // Days from next month to fill the grid (assuming 6 rows, 42 cells)
                     const remainingCells = 42 - days.length;
                     for (let i = 1; i <= remainingCells; i++) {
                         days.push({
@@ -1423,7 +1408,7 @@
                             dayOfMonth: i,
                             isCurrentMonth: false,
                             isToday: false,
-                            isInCurrentWeek: false
+                            isInCurrentWeek: false // Not relevant for next month days
                         });
                     }
                     return days;
@@ -1453,10 +1438,10 @@
                         return this.tasks
                             .filter(task => {
                                 const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO && task.scheduledDay === day;
-                                // Apply team member filter only if not on dashboard view
+                                // Apply team member filter only if viewing calendar; show all on dashboard
                                 const memberMatch = this.currentView !== 'dashboard'
                                     ? (this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember))
-                                    : true; // Show all team data on dashboard
+                                    : true;
                                 return weekMatch && memberMatch;
                             })
                             .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
@@ -1477,11 +1462,26 @@
                     this.$nextTick(() => {
                          if(this.currentView === 'dashboard'){
                             this.initTaskStatusChart();
-                            this.initWeeklyWorkloadChart();
+                            this.initWeeklyWorkloadChart(); // Also init workload chart for dashboard
                         } else if (this.currentView === 'calendar') {
+                             // Only update the workload chart if it exists on the calendar view
                              if (document.getElementById('weeklyWorkloadChart')) {
                                 this.initWeeklyWorkloadChart();
+                             } else {
+                                // If the chart element isn't present (e.g., moved to dashboard only), destroy any lingering instance
+                                if(this.weeklyWorkloadChartInstance){
+                                    this.weeklyWorkloadChartInstance.destroy();
+                                    this.weeklyWorkloadChartInstance = null;
+                                }
                              }
+                             // Task status chart is only on dashboard, so no need to update/init here
+                             if(this.taskStatusChartInstance){
+                                 this.taskStatusChartInstance.destroy();
+                                 this.taskStatusChartInstance = null;
+                             }
+                        } else {
+                             // Destroy charts if not on dashboard or calendar view
+                             this.destroyCharts();
                         }
                     });
                 },
@@ -1493,3 +1493,6 @@
 
 </body>
 </html>
+
+
+
