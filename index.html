@@ -13,8 +13,7 @@
     <script>
       const supabaseUrl = 'https://qrzcujypjybpezlyondb.supabase.co';
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
-      const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
       function mapToDbProject(project) {
         const data = {
           name: project.name,
@@ -139,25 +138,25 @@
       }
 
       async function fetchProjects() {
-        const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabaseClient.from('projects').select('*').order('created_at', { ascending: false });
         if (error) { console.error('Projects error:', error); return []; }
         return data.map(mapFromDbProject);
       }
 
       async function fetchTeamMembers() {
-        const { data, error } = await supabase.from('team_members').select('*').order('name');
+        const { data, error } = await supabaseClient.from('team_members').select('*').order('name');
         if (error) { console.error('Team Members error:', error); return []; }
         return data.map(mapFromDbTeamMember);
       }
 
       async function fetchSprints() {
-        const { data, error } = await supabase.from('sprints').select('*').order('start_date', { ascending: false });
+        const { data, error } = await supabaseClient.from('sprints').select('*').order('start_date', { ascending: false });
         if (error) { console.error('Sprints error:', error); return []; }
         return data.map(mapFromDbSprint);
       }
 
       async function fetchTasks() {
-        const { data, error } = await supabase.from('tasks').select('*').order('created_at');
+        const { data, error } = await supabaseClient.from('tasks').select('*').order('created_at');
         if (error) { console.error('Tasks error:', error); return []; }
         return data.map(mapFromDbTask);
       }
@@ -902,16 +901,16 @@
 
                         // Delete Tasks associated with those Sprints (if any)
                         if (sprintIds.length > 0) {
-                            const { error: taskError } = await supabase.from('tasks').delete().in('sprint_id', sprintIds);
+                            const { error: taskError } = await supabaseClient.from('tasks').delete().in('sprint_id', sprintIds);
                             if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
                         }
 
                         // Delete Sprints associated with the Project
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('project_id', projectId);
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('project_id', projectId);
                         if (sprintError) throw new Error(`Failed to delete sprints: ${sprintError.message}`);
 
                         // Delete the Project itself
-                        const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
+                        const { error: projectError } = await supabaseClient.from('projects').delete().eq('id', projectId);
                         if (projectError) throw new Error(`Failed to delete project: ${projectError.message}`);
 
                         // If all DB operations succeeded, update local state
@@ -982,11 +981,11 @@
                 async deleteSprint(sprintId){
                     try {
                         // Delete tasks first
-                        const { error: taskError } = await supabase.from('tasks').delete().eq('sprint_id', sprintId);
+                        const { error: taskError } = await supabaseClient.from('tasks').delete().eq('sprint_id', sprintId);
                         if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
 
                         // Then delete the sprint
-                        const { error: sprintError } = await supabase.from('sprints').delete().eq('id', sprintId);
+                        const { error: sprintError } = await supabaseClient.from('sprints').delete().eq('id', sprintId);
                         if (sprintError) throw new Error(`Failed to delete sprint: ${sprintError.message}`);
 
                         // Update local state on success
@@ -1162,7 +1161,7 @@
                 confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
                 async deleteTask(taskId){
                     try {
-                        const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+                        const { error } = await supabaseClient.from('tasks').delete().eq('id', taskId);
                         if (error) throw error;
 
                         this.tasks = this.tasks.filter(t => t.id !== taskId);
