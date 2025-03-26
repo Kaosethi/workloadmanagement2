@@ -9,88 +9,159 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.3/dist/cdn.min.js"></script>
 
-    <!-- START: Supabase Setup (Incomplete & Corrected) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script>
       const supabaseUrl = 'https://qrzcujypjybpezlyondb.supabase.co';
       const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
-      // Corrected: Initialize the client
       const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-      // Example fetch functions (not directly tied to Alpine state updates yet)
-      async function fetchProjects() {
-        const { data, error } = await supabase.from('projects').select('*');
-        if (error) {
-          console.error('Projects error:', error);
-          return [];
+      function mapToDbProject(project) {
+        const data = {
+          name: project.name,
+          description: project.description,
+          priority: project.priority,
+          deadline: project.deadline,
+          notes: project.notes,
+          status: project.status,
+          modified_at: project.modified || new Date().toISOString()
+        };
+        if (!project.id) { // Only add created_at for new records
+            data.created_at = project.created || new Date().toISOString();
+        }
+        if (project.id) {
+            data.id = project.id; // Include ID for updates
         }
         return data;
+      }
+
+      function mapFromDbProject(dbProject) {
+        return {
+          id: dbProject.id,
+          name: dbProject.name,
+          description: dbProject.description,
+          priority: dbProject.priority,
+          deadline: dbProject.deadline,
+          notes: dbProject.notes,
+          status: dbProject.status,
+          created: dbProject.created_at,
+          modified: dbProject.modified_at
+        };
+      }
+
+       function mapToDbSprint(sprint) {
+         const data = {
+           project_id: sprint.projectId,
+           name: sprint.name,
+           start_date: sprint.startDate,
+           end_date: sprint.endDate,
+           modified_at: sprint.modified || new Date().toISOString()
+         };
+          if (!sprint.id) {
+            data.created_at = sprint.created || new Date().toISOString();
+          }
+          if (sprint.id) {
+            data.id = sprint.id;
+          }
+         return data;
+       }
+
+       function mapFromDbSprint(dbSprint) {
+         return {
+           id: dbSprint.id,
+           projectId: dbSprint.project_id,
+           name: dbSprint.name,
+           startDate: dbSprint.start_date,
+           endDate: dbSprint.end_date,
+           created: dbSprint.created_at,
+           modified: dbSprint.modified_at
+         };
+       }
+
+       function mapToDbTask(task) {
+         const assignedToValue = task.assignedTo === '' ? null : task.assignedTo;
+         const data = {
+           sprint_id: task.sprintId,
+           name: task.name,
+           estimated_hours: task.estimatedHours,
+           dependencies: task.dependencies,
+           assigned_to: assignedToValue,
+           status: task.status,
+           scheduled_day: task.scheduledDay || null,
+           scheduled_time_block: task.scheduledTimeBlock || null,
+           scheduled_week_id: task.scheduledWeekId || null,
+           modified_at: task.modified || new Date().toISOString()
+         };
+          if (!task.id) {
+            data.created_at = task.created || new Date().toISOString();
+          }
+         if (task.id) {
+             data.id = task.id;
+         }
+         return data;
+       }
+
+        function mapFromDbTask(dbTask) {
+         return {
+           id: dbTask.id,
+           sprintId: dbTask.sprint_id,
+           name: dbTask.name,
+           estimatedHours: dbTask.estimated_hours,
+           dependencies: dbTask.dependencies,
+           assignedTo: dbTask.assigned_to || '',
+           status: dbTask.status,
+           scheduledDay: dbTask.scheduled_day || '',
+           scheduledTimeBlock: dbTask.scheduled_time_block || '',
+           scheduledWeekId: dbTask.scheduled_week_id || null,
+           created: dbTask.created_at,
+           modified: dbTask.modified_at
+         };
+       }
+
+      function mapToDbTeamMember(member) {
+        const data = {
+          name: member.name,
+          role: member.role,
+          color: member.color
+        };
+        if (member.id) {
+            data.id = member.id;
+        }
+        return data;
+      }
+
+      function mapFromDbTeamMember(dbMember) {
+        return {
+          id: dbMember.id,
+          name: dbMember.name,
+          role: dbMember.role,
+          color: dbMember.color
+        };
+      }
+
+      async function fetchProjects() {
+        const { data, error } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+        if (error) { console.error('Projects error:', error); return []; }
+        return data.map(mapFromDbProject);
       }
 
       async function fetchTeamMembers() {
-        const { data, error } = await supabase.from('team_members').select('*');
-        if (error) {
-          console.error('Team Members error:', error);
-          return [];
-        }
-        return data;
+        const { data, error } = await supabase.from('team_members').select('*').order('name');
+        if (error) { console.error('Team Members error:', error); return []; }
+        return data.map(mapFromDbTeamMember);
       }
 
       async function fetchSprints() {
-        const { data, error } = await supabase.from('sprints').select('*');
-        if (error) {
-          console.error('Sprints error:', error);
-          return [];
-        }
-        return data;
+        const { data, error } = await supabase.from('sprints').select('*').order('start_date', { ascending: false });
+        if (error) { console.error('Sprints error:', error); return []; }
+        return data.map(mapFromDbSprint);
       }
 
       async function fetchTasks() {
-        const { data, error } = await supabase.from('tasks').select('*');
-        if (error) {
-          console.error('Tasks error:', error);
-          return [];
-        }
-        return data;
+        const { data, error } = await supabase.from('tasks').select('*').order('created_at');
+        if (error) { console.error('Tasks error:', error); return []; }
+        return data.map(mapFromDbTask);
       }
-
-      // Function to show all data (for debugging/initial testing)
-      async function showAllData() {
-        const projects = await fetchProjects();
-        const teamMembers = await fetchTeamMembers();
-        const sprints = await fetchSprints();
-        const tasks = await fetchTasks();
-
-        console.log('Projects:', projects);
-        console.log('Team Members:', teamMembers);
-        console.log('Sprints:', sprints);
-        console.log('Tasks:', tasks);
-      }
-
-      // Example call: showAllData();
-      // Note: In the full app, this data should be loaded into Alpine state.
     </script>
-    <!-- END: Supabase Setup -->
-
-    <!-- Div for initial project display (if needed, but Alpine handles it later) -->
-    <!-- <div id="project-list"></div> -->
-
-    <!-- Script for initial project display (commented out as Alpine handles this now) -->
-    <!--
-    <script>
-        async function displayProjects() {
-          const projects = await fetchProjects();
-          const projectList = document.getElementById('project-list');
-          projectList.innerHTML = ''; // Clear previous list
-          projects.forEach(project => {
-            const item = document.createElement('div');
-            item.textContent = `${project.name} (${project.status})`;
-            projectList.appendChild(item);
-          });
-        }
-        // displayProjects(); // Call this if you want initial display before Alpine takes over
-    </script>
-    -->
 
     <script>
         tailwind.config = {
@@ -194,7 +265,6 @@
         </header>
 
         <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <!-- Projects & Sprints View -->
             <div x-show="currentView === 'projects'" class="animate-fade-in">
                 <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold">Projects & Sprints</h2>
@@ -328,20 +398,17 @@
                 </div>
             </div>
 
-            <!-- Calendar View -->
             <div x-show="currentView === 'calendar'" class="animate-fade-in">
                 <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <h2 class="text-2xl font-bold">Weekly Calendar</h2>
                     <div class="flex flex-wrap items-center space-x-4 gap-y-2">
                         <div class="flex items-center space-x-2 bg-white dark:bg-gray-800 p-1 rounded-md shadow-sm">
                             <button @click="previousWeek()" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Previous Week"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                            <!-- START: Modified Week Range -->
                             <button @click="openDatePicker()"
                                     class="text-sm md:text-base font-medium px-2 py-1 whitespace-nowrap hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                                     title="Select Week">
                                 <span x-text="formatWeekRange()"></span>
                             </button>
-                            <!-- END: Modified Week Range -->
                             <button @click="nextWeek()" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Next Week"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
                         </div>
                         <button @click="showManageTeamMembersModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg> Manage Team</button>
@@ -422,7 +489,6 @@
                 </div>
             </div>
 
-            <!-- Dashboard View -->
             <div x-show="currentView === 'dashboard'" class="animate-fade-in">
                  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Projects</h3><p class="text-3xl font-bold" x-text="projects.length"></p></div>
@@ -497,12 +563,11 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 dark:text-gray-400">
                     <div>Tech Workload Manager © <span x-text="new Date().getFullYear()"></span></div>
-                    <div class="mt-2 md:mt-0">Version 1.2.0</div>
+                    <div class="mt-2 md:mt-0">Version 1.3.0 (DB Integrated)</div>
                 </div>
             </div>
         </footer>
 
-        <!-- Add/Edit Project Modal -->
         <div x-show="showAddProjectModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                 <div x-show="showAddProjectModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddProjectModal = false"></div>
@@ -513,7 +578,6 @@
             </div>
         </div>
 
-        <!-- Add/Edit Sprint Modal -->
         <div x-show="showAddSprintModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showAddSprintModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddSprintModal = false"></div>
@@ -524,7 +588,6 @@
             </div>
         </div>
 
-        <!-- Add/Edit Task Modal -->
         <div x-show="showAddTaskModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
             <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showAddTaskModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddTaskModal = false"></div>
@@ -539,10 +602,8 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label for="taskScheduledDay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scheduled Day (Optional)</label><select id="taskScheduledDay" x-model="taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Not scheduled</option><template x-for="day in daysOfWeek" :key="day"> <option :value="day" x-text="day"></option> </template></select></div><div><label for="taskScheduledTimeBlock" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Block (Optional)</label><select id="taskScheduledTimeBlock" x-model="taskForm.scheduledTimeBlock" :disabled="!taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="">Not scheduled</option> <option value="Morning">Morning</option> <option value="Afternoon">Afternoon</option></select></div></div>
                         <p x-show="taskForm.scheduledDay && !taskForm.scheduledTimeBlock" class="text-red-500 text-sm mb-4">Please select a Time Block if scheduling for a Day.</p>
 
-                        {/* <!-- START: Modified Footer --> */}
                         <div class="flex justify-between items-center mt-6">
                             <div>
-                                {/* <!-- Remove from Calendar Button --> */}
                                 <button type="button"
                                         x-show="editingTask && taskForm.scheduledDay"
                                         @click="removeTaskFromCalendar(taskForm.id)"
@@ -552,32 +613,28 @@
                                 </button>
                             </div>
                             <div class="flex space-x-3">
-                                {/* <!-- Existing Buttons --> */}
                                 <button type="button" @click="showAddTaskModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button>
                                 <button type="submit" :disabled="(taskForm.scheduledDay && !taskForm.scheduledTimeBlock) || !taskForm.sprintId || (taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0)" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed">
                                     <span x-text="editingTask ? 'Update Task' : 'Add Task'"></span>
                                 </button>
                             </div>
                         </div>
-                        {/* <!-- END: Modified Footer --> */}
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Manage Team Members Modal -->
         <div x-show="showManageTeamMembersModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
            <div class="flex items-center justify-center min-h-screen px-4">
                 <div x-show="showManageTeamMembersModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showManageTeamMembersModal = false"></div>
                 <div x-show="showManageTeamMembersModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
                     <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Manage Team Members</h2><button @click="showManageTeamMembersModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
-                    <div class="mb-4 max-h-64 overflow-y-auto pr-2"><template x-for="(member, index) in teamMembers" :key="member.id"><div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg mb-2"><div class="flex items-center"><div class="w-3 h-3 rounded-full mr-3 flex-shrink-0" :style="`background-color: ${member.color}`"></div><div><span class="font-medium text-gray-900 dark:text-gray-100" x-text="member.name"></span><span class="text-xs text-gray-500 dark:text-gray-400 block" x-text="member.role"></span></div></div><button @click="removeTeamMember(member.id)" class="text-gray-500 dark:text-gray-400 hover:text-red-500" title="Remove Member"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button></div></template><div x-show="teamMembers.length === 0" class="p-4 text-center text-gray-500 dark:text-gray-400"> No team members added yet </div></div>
+                    <div class="mb-4 max-h-64 overflow-y-auto pr-2"><template x-for="(member, index) in teamMembers" :key="member.id"><div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg mb-2"><div class="flex items-center"><div class="w-3 h-3 rounded-full mr-3 flex-shrink-0" :style="`background-color: ${member.color}`"></div><div><span class="font-medium text-gray-900 dark:text-gray-100" x-text="member.name"></span><span class="text-xs text-gray-500 dark:text-gray-400 block" x-text="member.role"></span></div></div><button @click="confirmRemoveTeamMember(member)" class="text-gray-500 dark:text-gray-400 hover:text-red-500" title="Remove Member"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button></div></template><div x-show="teamMembers.length === 0" class="p-4 text-center text-gray-500 dark:text-gray-400"> No team members added yet </div></div>
                     <form @submit.prevent="addTeamMember()" class="border-t dark:border-gray-600 pt-4"><h3 class="text-lg font-medium mb-3">Add New Member</h3><div class="grid grid-cols-3 gap-3 mb-4"><div class="col-span-2"><label for="memberName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label><input type="text" id="memberName" x-model="teamMemberForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="memberColor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label><input type="color" id="memberColor" x-model="teamMemberForm.color" required class="w-full h-10 p-0 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm cursor-pointer"></div></div><div class="mb-4"><label for="memberRole" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label><input type="text" id="memberRole" x-model="teamMemberForm.role" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" placeholder="e.g. Developer, Designer"></div><div class="flex justify-end"><button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"> Add Member </button></div></form>
                 </div>
             </div>
         </div>
 
-        <!-- Confirmation Modal -->
         <div x-show="showConfirmModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
              <div class="flex items-center justify-center min-h-screen px-4">
                  <div x-show="showConfirmModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showConfirmModal = false"></div>
@@ -589,10 +646,8 @@
             </div>
         </div>
 
-        <!-- START: Date Picker Modal -->
         <div x-show="showDatePickerModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
             <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-                <!-- Background overlay -->
                 <div x-show="showDatePickerModal"
                      x-transition:enter="ease-out duration-300"
                      x-transition:enter-start="opacity-0"
@@ -603,7 +658,6 @@
                      class="fixed inset-0 bg-black/50 dark:bg-black/70 transition-opacity"
                      @click="closeDatePicker()"></div>
 
-                <!-- Modal panel -->
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
                 <div x-show="showDatePickerModal"
                      x-transition:enter="ease-out duration-300"
@@ -662,80 +716,56 @@
                 </div>
             </div>
         </div>
-        <!-- END: Date Picker Modal -->
 
-    </div> <!-- End of <div id="app"> -->
+    </div>
 
     <script>
-        const STORAGE_KEY = 'techWorkloadManagerData_v1_2';
-        function loadState() { const savedState = localStorage.getItem(STORAGE_KEY); if (savedState) { try { return JSON.parse(savedState); } catch (e) { console.error("Error loading saved state:", e); localStorage.removeItem(STORAGE_KEY); } } return null; }
-        function saveState(state) { try { const stateToSave = { currentView: state.currentView, expandedProjectId: state.expandedProjectId, expandedSprintId: state.expandedSprintId, selectedTeamMember: state.selectedTeamMember, selectedProjectStatusTab: state.selectedProjectStatusTab, calendarDate: state.calendarDate.toISOString(), projects: JSON.parse(JSON.stringify(state.projects)), sprints: JSON.parse(JSON.stringify(state.sprints)), tasks: JSON.parse(JSON.stringify(state.tasks)), teamMembers: JSON.parse(JSON.stringify(state.teamMembers)), }; localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave)); } catch (e) { console.error("Error saving state:", e); } }
         function initDarkMode() { if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } if (window.appInstance && (window.appInstance.taskStatusChartInstance || window.appInstance.weeklyWorkloadChartInstance)) { window.appInstance.updateCharts(); } }
         initDarkMode(); window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { localStorage.removeItem('theme'); initDarkMode(); });
         function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
 
         function app() {
-            const initialState = loadState();
             return {
-                currentView: initialState?.currentView || 'projects',
-                expandedProjectId: initialState?.expandedProjectId || null,
-                expandedSprintId: initialState?.expandedSprintId || null,
-                selectedProjectStatusTab: initialState?.selectedProjectStatusTab || 'In Progress',
-                selectedTeamMember: initialState?.selectedTeamMember || null,
-                calendarDate: initialState?.calendarDate ? new Date(initialState.calendarDate) : new Date(),
+                currentView: 'projects',
+                expandedProjectId: null,
+                expandedSprintId: null,
+                selectedProjectStatusTab: 'In Progress',
+                selectedTeamMember: null,
+                calendarDate: new Date(),
                 draggedTask: null,
-                projects: initialState?.projects || [],
-                sprints: initialState?.sprints || [],
-                tasks: initialState?.tasks || [],
-                teamMembers: initialState?.teamMembers || [],
+                projects: [],
+                sprints: [],
+                tasks: [],
+                teamMembers: [],
                 projectForm: {}, sprintForm: {}, taskForm: {}, teamMemberForm: {},
                 showAddProjectModal: false, showAddSprintModal: false, showAddTaskModal: false, showManageTeamMembersModal: false, showConfirmModal: false,
                 editingProject: false, editingSprint: false, editingTask: false,
                 confirmTitle: '', confirmMessage: '', confirmAction: () => {},
                 daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
                 taskStatusChartInstance: null, weeklyWorkloadChartInstance: null,
-
-                // START: New Date Picker State
                 showDatePickerModal: false,
-                datePickerDate: new Date(), // Represents the month/year shown in the picker
-                // END: New Date Picker State
+                datePickerDate: new Date(),
+                isLoading: true, // Added loading state
 
-                initApp() {
+                async initApp() {
                     window.appInstance = this;
-                    if (!initialState) {
-                        this.loadSampleData();
-                    }
                     this.resetProjectForm();
                     this.resetSprintForm();
                     this.resetTaskForm();
                     this.resetTeamMemberForm();
+
+                    await this.loadDataFromSupabase(); // Load data on init
+
                     if (this.currentView === 'dashboard') {
                         this.$nextTick(() => this.initCharts());
                     }
-                    this.$watch(['projects', 'sprints', 'tasks', 'teamMembers', 'currentView', 'expandedProjectId', 'expandedSprintId', 'selectedTeamMember', 'selectedProjectStatusTab', 'calendarDate'], Alpine.debounce(() => {
-                        saveState(this);
-                        if (this.currentView === 'dashboard' && (this.taskStatusChartInstance || this.weeklyWorkloadChartInstance)) {
-                            this.$nextTick(() => this.updateCharts());
-                        }
-                         if (this.currentView === 'calendar') {
-                             // Re-render workload chart on calendar view changes too
-                             this.$nextTick(() => {
-                                 if (document.getElementById('weeklyWorkloadChart')) {
-                                     this.initWeeklyWorkloadChart(); // Reinitialize or update weekly chart
-                                 }
-                             });
-                         }
-                    }, 500));
-
-                    // Initial data load from Supabase (Example - needs refinement for proper state sync)
-                    // this.loadDataFromSupabase(); // You would call a function like this
+                    this.isLoading = false; // Set loading to false after data is loaded
                 },
 
-                // Example: Function to load data from Supabase into Alpine state
                 async loadDataFromSupabase() {
                     console.log("Attempting to load data from Supabase...");
+                    this.isLoading = true;
                     try {
-                        // Using Promise.all to fetch concurrently
                         const [projectsData, teamMembersData, sprintsData, tasksData] = await Promise.all([
                             fetchProjects(),
                             fetchTeamMembers(),
@@ -743,141 +773,159 @@
                             fetchTasks()
                         ]);
 
-                        // Only update if data was fetched successfully and local storage is empty/invalid
-                        if (!initialState) {
-                             this.projects = projectsData || [];
-                             this.teamMembers = teamMembersData || [];
-                             this.sprints = sprintsData || [];
-                             this.tasks = tasksData || [];
-                             console.log("Loaded data from Supabase into Alpine state.");
-                             // Add weekId to tasks if needed based on dates
-                             this.tasks = this.tasks.map(task => {
-                                if (task.scheduledDay && task.scheduledTimeBlock && task.scheduledWeekId) {
-                                    // Assume scheduledWeekId is stored as ISO string
-                                } else {
-                                    task.scheduledWeekId = null; // Ensure it's null if not set
-                                }
-                                return task;
-                             });
-                             saveState(this); // Save the newly loaded state
-                        } else {
-                            console.log("Using data from local storage.");
-                        }
-
+                        this.projects = projectsData || [];
+                        this.teamMembers = teamMembersData || [];
+                        this.sprints = sprintsData || [];
+                        this.tasks = tasksData || [];
+                        console.log("Loaded data from Supabase into Alpine state.");
 
                     } catch (error) {
                         console.error("Error loading data from Supabase:", error);
-                        // Fallback to sample data or empty state if Supabase fails and no local state
-                        if (!initialState) {
-                            this.loadSampleData();
-                            console.log("Fell back to loading sample data.");
-                        }
+                        alert("Failed to load initial data. Please check the console and refresh.");
+                        // Optionally load sample data as fallback: this.loadSampleData();
                     } finally {
-                         // Ensure charts are initialized/updated after data load attempt
-                        if (this.currentView === 'dashboard') {
-                           this.$nextTick(() => this.initCharts());
-                        } else if (this.currentView === 'calendar') {
-                           this.$nextTick(() => {
-                                if (document.getElementById('weeklyWorkloadChart')) {
-                                     this.initWeeklyWorkloadChart();
-                                }
-                           });
-                        }
+                         this.isLoading = false;
+                         this.$nextTick(() => this.updateCharts()); // Update charts after data load attempt
                     }
                 },
 
+                async handleDrop(event, day, timeBlock) {
+                    event.currentTarget.classList.remove('drag-over');
+                    if (!this.draggedTask) return;
 
-                loadSampleData(){
-                    console.log("Loading sample data...");
-                    this.teamMembers=[{id:generateId(),name:'Alice Green',role:'Lead Developer',color:'#4F46E5'},{id:generateId(),name:'Bob White',role:'UI/UX Designer',color:'#DB2777'},{id:generateId(),name:'Charlie Black',role:'Project Manager',color:'#059669'},{id:generateId(),name:'David Grey',role:'QA Tester',color:'#F59E0B'}];
-                    const p1=generateId(),p2=generateId(),p3=generateId(),p4=generateId();
-                    this.projects.push({id:p1,name:'E-commerce Platform',description:'Build a new online store with modern features.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+90))),notes:'Integrate Stripe, focus on performance.',status:'In Progress',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.projects.push({id:p2,name:'Internal Dashboard',description:'Develop an internal tool for monitoring key metrics.',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+45))),notes:'',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.projects.push({id:p3,name:'Blog Migration',description:'Migrate legacy blog posts to new CMS.',priority:'Low',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+60))),notes:'Ensure redirects are set up.',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.projects.push({id:p4,name:'Mobile App Refactor',description:'Refactor codebase for the iOS and Android apps.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+120))),notes:'Improve performance and stability.',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    const s1=generateId(),s2=generateId(),s3=generateId(),s4=generateId(),s5=generateId();
-                    this.sprints.push({id:s1,projectId:p1,name:'Sprint 1 - Auth & UI Setup',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-7))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+7))),created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.sprints.push({id:s2,projectId:p1,name:'Sprint 2 - Product Catalog',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+8))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+22))),created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.sprints.push({id:s3,projectId:p2,name:'Dashboard Sprint 1 - Metrics API',startDate:this.formatDateForInput(new Date()),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+14))),created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.sprints.push({id:s4,projectId:p4,name:'Refactor - Core Modules',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-30))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-16))),created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.sprints.push({id:s5,projectId:p4,name:'Refactor - UI Polish',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-15))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-1))),created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s1,name:'Design login page',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',scheduledDay:'Monday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s1,name:'Implement JWT authentication',estimatedHours:8,dependencies:'Design login page',assignedTo:'Alice Green',status:'In Progress',scheduledDay:'Tuesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s1,name:'Setup basic UI components library',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'In Progress',scheduledDay:'Monday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s2,name:'Define product schema',estimatedHours:3,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s2,name:'Design product listing page',estimatedHours:5,dependencies:'',assignedTo:'Bob White',status:'Not Started',scheduledDay:'Thursday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s1,name:'Sprint planning meeting',estimatedHours:1,dependencies:'',assignedTo:'Charlie Black',status:'Done',scheduledDay:'',scheduledTimeBlock:'',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s3,name:'Define Metrics API endpoints',estimatedHours:4,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s3,name:'Setup dashboard project',estimatedHours:2,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Tuesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s1,name:'Test login flow',estimatedHours:3,dependencies:'Implement JWT authentication',assignedTo:'David Grey',status:'Not Started',scheduledDay:'Friday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s4,name:'Update dependency management',estimatedHours:8,dependencies:'',assignedTo:'Alice Green',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s5,name:'Implement new splash screen',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});
-                    this.tasks.push({id:generateId(),sprintId:s5,name:'Fix animation glitches on profile page',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});
+                    const taskId = event.dataTransfer.getData('text/plain');
+                    const taskIndex = this.tasks.findIndex(t => t.id === taskId);
 
-                    const currentMondayISO = this.getMonday(new Date()).toISOString();
-                    this.tasks = this.tasks.map(task => {
-                        if (task.scheduledDay && this.daysOfWeek.includes(task.scheduledDay)) {
-                            task.scheduledWeekId = currentMondayISO;
-                        } else {
-                            task.scheduledWeekId = null;
+                    if (taskIndex !== -1) {
+                        const targetWeekId = this.getMonday(this.calendarDate).toISOString();
+                        const originalTask = this.tasks[taskIndex];
+
+                        // Prepare updated data for DB
+                        const updatedData = {
+                            ...mapToDbTask(originalTask), // Map original task to DB format first
+                            scheduled_day: day,
+                            scheduled_time_block: timeBlock,
+                            scheduled_week_id: targetWeekId,
+                            modified_at: new Date().toISOString()
+                        };
+                        // Remove id from updatedData if your DB handles it on update
+                        // delete updatedData.id;
+
+                        console.log("Updating task schedule in DB:", updatedData);
+
+                        try {
+                            const { data: updatedDbTask, error } = await supabase
+                                .from('tasks')
+                                .update(updatedData)
+                                .eq('id', taskId)
+                                .select() // Return the updated row
+                                .single(); // Expect single result
+
+                            if (error) throw error;
+
+                            console.log("DB update successful:", updatedDbTask);
+
+                            // Update local state ONLY after successful DB update
+                            const updatedLocalTask = mapFromDbTask(updatedDbTask); // Map DB result back
+                            this.tasks.splice(taskIndex, 1, updatedLocalTask);
+                            this.draggedTask = null; // Clear dragged task
+
+                        } catch (error) {
+                            console.error('Error updating task schedule in DB:', error);
+                            alert(`Failed to update task schedule: ${error.message}`);
+                            // Local state remains unchanged if DB update fails
                         }
-                        return task;
-                    });
+                    }
                 },
 
                 handleDragStart(event,task){this.draggedTask=task;event.target.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',task.id);},
                 handleDragEnd(event){try{if(event.target&&event.target.classList.contains('dragging')){event.target.classList.remove('dragging');}}finally{this.draggedTask=null;document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}},
                 handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
                 handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
-                handleDrop(event,day,timeBlock){
-                    event.currentTarget.classList.remove('drag-over');
-                    if(!this.draggedTask) return;
-                    const taskId=event.dataTransfer.getData('text/plain');
-                    const taskIndex=this.tasks.findIndex(t=>t.id===taskId);
-                    if(taskIndex!==-1){
-                        const targetWeekId = this.getMonday(this.calendarDate).toISOString();
-                        const updatedTask={...this.tasks[taskIndex], scheduledDay:day, scheduledTimeBlock:timeBlock, scheduledWeekId: targetWeekId, modified:new Date().toISOString()};
-                        this.tasks.splice(taskIndex,1,updatedTask);
-                        // Add Supabase update call here if implemented
-                    }
-                },
 
-                setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}},
+                setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}else if (view === 'calendar'){this.$nextTick(()=>this.initWeeklyWorkloadChart())}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}},
 
                 resetProjectForm(){this.projectForm={id:null,name:'',description:'',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+30))),notes:'',status:'Not Started'};this.editingProject=false;},
                 editProject(project){this.projectForm={...project};this.editingProject=true;this.showAddProjectModal=true;},
-                async saveProject(){ // Added async for potential Supabase integration
-                    if(!this.projectForm.name||!this.projectForm.deadline)return;
-                    const nowISO = new Date().toISOString();
-                    const projectData = {...this.projectForm, modified: nowISO};
+                async saveProject(){
+                    if(!this.projectForm.name||!this.projectForm.deadline) { alert('Project Name and Deadline are required.'); return; }
 
-                    if(this.editingProject){
-                        const index=this.projects.findIndex(p=>p.id===projectData.id);
-                        if(index!==-1){
-                             // TODO: Add Supabase update logic here
-                             // const { error } = await supabase.from('projects').update(projectData).eq('id', projectData.id);
-                            this.projects.splice(index,1,projectData);
+                    const nowISO = new Date().toISOString();
+                    const projectDataJS = {...this.projectForm, modified: nowISO};
+
+                    try {
+                        if(this.editingProject){
+                             const projectDataDB = mapToDbProject(projectDataJS);
+                             const { data, error } = await supabase
+                                .from('projects')
+                                .update(projectDataDB)
+                                .eq('id', projectDataJS.id)
+                                .select()
+                                .single();
+
+                            if (error) throw error;
+
+                            const updatedProject = mapFromDbProject(data);
+                            const index = this.projects.findIndex(p => p.id === updatedProject.id);
+                            if (index !== -1) {
+                                this.projects.splice(index, 1, updatedProject);
+                            }
+                        } else {
+                            // Omit id for insert
+                            const { id, ...insertDataJS } = projectDataJS;
+                            insertDataJS.created = nowISO; // Ensure created timestamp
+                            const insertDataDB = mapToDbProject(insertDataJS);
+
+                            const { data, error } = await supabase
+                                .from('projects')
+                                .insert(insertDataDB)
+                                .select()
+                                .single();
+
+                            if (error) throw error;
+
+                            const newProject = mapFromDbProject(data);
+                            this.projects.unshift(newProject); // Add to start of list
                         }
-                    }else{
-                        projectData.id = generateId();
-                        projectData.created = nowISO;
-                        // TODO: Add Supabase insert logic here
-                        // const { error } = await supabase.from('projects').insert([projectData]);
-                        this.projects.push(projectData);
+                        this.showAddProjectModal = false;
+                        this.updateCharts(); // Update dashboard if needed
+                    } catch (error) {
+                        console.error('Error saving project:', error);
+                        alert(`Failed to save project: ${error.message}`);
                     }
-                    this.showAddProjectModal=false;
                 },
                 confirmDeleteProject(project){this.confirmTitle='Delete Project';this.confirmMessage=`Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;this.confirmAction=()=>this.deleteProject(project.id);this.showConfirmModal=true;},
-                async deleteProject(projectId){ // Added async
-                    const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);
-                    // TODO: Add Supabase delete logic here (delete tasks, then sprints, then project - handle potential errors)
-                    // await supabase.from('tasks').delete().in('sprintId', sprintIds);
-                    // await supabase.from('sprints').delete().eq('projectId', projectId);
-                    // await supabase.from('projects').delete().eq('id', projectId);
-                    this.tasks=this.tasks.filter(t=>!sprintIds.includes(t.sprintId));
-                    this.sprints=this.sprints.filter(s=>s.projectId!==projectId);
-                    this.projects=this.projects.filter(p=>p.id!==projectId);
-                    if(this.expandedProjectId===projectId){this.expandedProjectId=null;}
+                async deleteProject(projectId){
+                    try {
+                        // Get related sprint IDs first
+                        const sprintIds = this.sprints.filter(s => s.projectId === projectId).map(s => s.id);
+
+                        // Delete Tasks associated with those Sprints (if any)
+                        if (sprintIds.length > 0) {
+                            const { error: taskError } = await supabase.from('tasks').delete().in('sprint_id', sprintIds);
+                            if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
+                        }
+
+                        // Delete Sprints associated with the Project
+                        const { error: sprintError } = await supabase.from('sprints').delete().eq('project_id', projectId);
+                        if (sprintError) throw new Error(`Failed to delete sprints: ${sprintError.message}`);
+
+                        // Delete the Project itself
+                        const { error: projectError } = await supabase.from('projects').delete().eq('id', projectId);
+                        if (projectError) throw new Error(`Failed to delete project: ${projectError.message}`);
+
+                        // If all DB operations succeeded, update local state
+                        this.tasks = this.tasks.filter(t => !sprintIds.includes(t.sprintId));
+                        this.sprints = this.sprints.filter(s => s.projectId !== projectId);
+                        this.projects = this.projects.filter(p => p.id !== projectId);
+
+                        if (this.expandedProjectId === projectId) { this.expandedProjectId = null; }
+                        this.updateCharts(); // Update dashboard
+
+                    } catch (error) {
+                        console.error('Error deleting project and related items:', error);
+                        alert(`Deletion failed: ${error.message}`);
+                    }
                 },
                 calculateProjectProgress(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);const projectTasks=this.tasks.filter(t=>sprintIds.includes(t.sprintId));if(projectTasks.length===0)return 0;const completedTasks=projectTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/projectTasks.length)*100);},
                 getProjectNameById(projectId){return this.projects.find(p=>p.id===projectId)?.name||'Unknown Project';},
@@ -885,43 +933,73 @@
                 getSprintsForProject(projectId){const sprints=this.sprints.filter(s=>s.projectId===projectId);return[...sprints].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));},
                 resetSprintForm(projectId=null){const today=new Date();const twoWeeksLater=new Date();twoWeeksLater.setDate(today.getDate()+14);this.sprintForm={id:null,projectId:projectId||'',name:'',startDate:this.formatDateForInput(today),endDate:this.formatDateForInput(twoWeeksLater)};this.editingSprint=false;},
                 editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.showAddSprintModal=true;},
-                async saveSprint(){ // Added async
-                    if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate)return;
-                    const nowISO = new Date().toISOString();
-                    // Create a copy excluding potential non-db fields if necessary
-                    const sprintData = {
-                        id: this.sprintForm.id,
-                        projectId: this.sprintForm.projectId,
-                        name: this.sprintForm.name,
-                        startDate: this.sprintForm.startDate,
-                        endDate: this.sprintForm.endDate,
-                        modified: nowISO
-                    };
+                async saveSprint(){
+                    if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate) { alert('Please fill all required fields and ensure End Date is after Start Date.'); return; }
 
-                    if(this.editingSprint){
-                        const index=this.sprints.findIndex(s=>s.id===sprintData.id);
-                        if(index!==-1){
-                            // TODO: Add Supabase update logic here
-                            // const { error } = await supabase.from('sprints').update(sprintData).eq('id', sprintData.id);
-                            this.sprints.splice(index, 1, { ...this.sprints[index], ...sprintData }); // Merge to keep 'created'
+                    const nowISO = new Date().toISOString();
+                    const sprintDataJS = {...this.sprintForm, modified: nowISO};
+
+                    try {
+                        if(this.editingSprint){
+                            const sprintDataDB = mapToDbSprint(sprintDataJS);
+                            const { data, error } = await supabase
+                                .from('sprints')
+                                .update(sprintDataDB)
+                                .eq('id', sprintDataJS.id)
+                                .select()
+                                .single();
+
+                            if (error) throw error;
+
+                            const updatedSprint = mapFromDbSprint(data);
+                            const index = this.sprints.findIndex(s => s.id === updatedSprint.id);
+                            if (index !== -1) {
+                                this.sprints.splice(index, 1, updatedSprint);
+                            }
+                        } else {
+                             const { id, ...insertDataJS } = sprintDataJS;
+                             insertDataJS.created = nowISO;
+                             const insertDataDB = mapToDbSprint(insertDataJS);
+
+                            const { data, error } = await supabase
+                                .from('sprints')
+                                .insert(insertDataDB)
+                                .select()
+                                .single();
+
+                            if (error) throw error;
+
+                            const newSprint = mapFromDbSprint(data);
+                            this.sprints.push(newSprint); // Consider sorting or unshift if needed
                         }
-                    } else {
-                        sprintData.id = generateId();
-                        sprintData.created = nowISO;
-                        // TODO: Add Supabase insert logic here
-                        // const { error } = await supabase.from('sprints').insert([sprintData]);
-                        this.sprints.push(sprintData);
+                        this.showAddSprintModal = false;
+                    } catch (error) {
+                        console.error('Error saving sprint:', error);
+                        alert(`Failed to save sprint: ${error.message}`);
                     }
-                    this.showAddSprintModal=false;
                 },
                 confirmDeleteSprint(sprint){this.confirmTitle='Delete Sprint';this.confirmMessage=`Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;this.confirmAction=()=>this.deleteSprint(sprint.id);this.showConfirmModal=true;},
-                async deleteSprint(sprintId){ // Added async
-                    // TODO: Add Supabase delete logic (delete tasks, then sprint)
-                    // await supabase.from('tasks').delete().eq('sprintId', sprintId);
-                    // await supabase.from('sprints').delete().eq('id', sprintId);
-                    this.tasks=this.tasks.filter(t=>t.sprintId!==sprintId);
-                    this.sprints=this.sprints.filter(s=>s.id!==sprintId);
-                    if(this.expandedSprintId===sprintId){this.expandedSprintId=null;}
+                async deleteSprint(sprintId){
+                    try {
+                        // Delete tasks first
+                        const { error: taskError } = await supabase.from('tasks').delete().eq('sprint_id', sprintId);
+                        if (taskError) throw new Error(`Failed to delete tasks: ${taskError.message}`);
+
+                        // Then delete the sprint
+                        const { error: sprintError } = await supabase.from('sprints').delete().eq('id', sprintId);
+                        if (sprintError) throw new Error(`Failed to delete sprint: ${sprintError.message}`);
+
+                        // Update local state on success
+                        this.tasks = this.tasks.filter(t => t.sprintId !== sprintId);
+                        this.sprints = this.sprints.filter(s => s.id !== sprintId);
+
+                        if (this.expandedSprintId === sprintId) { this.expandedSprintId = null; }
+                        this.updateCharts();
+
+                    } catch (error) {
+                        console.error('Error deleting sprint and related tasks:', error);
+                        alert(`Deletion failed: ${error.message}`);
+                    }
                 },
                 calculateSprintProgress(sprintId){const sprintTasks=this.getTasksForSprint(sprintId);if(sprintTasks.length===0)return 0;const completedTasks=sprintTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/sprintTasks.length)*100);},
                 countTasksByStatus(sprintId,status){return this.getTasksForSprint(sprintId).filter(t=>t.status===status).length;},
@@ -939,7 +1017,7 @@
                 resetTaskForm() {
                     this.taskForm = {
                         id: null,
-                        selectedProjectIdForTask: '', // Temporary state for UI logic
+                        selectedProjectIdForTask: '',
                         sprintId: '',
                         name: '',
                         estimatedHours: 1,
@@ -949,8 +1027,8 @@
                         scheduledDay: '',
                         scheduledTimeBlock: '',
                         scheduledWeekId: null,
-                        prefilledProjectId: false, // UI state flag
-                        prefilledSprintId: false // UI state flag
+                        prefilledProjectId: false,
+                        prefilledSprintId: false
                     };
                     this.editingTask = false;
                 },
@@ -958,20 +1036,19 @@
                     this.resetTaskForm();
                     const sprint = this.sprints.find(s => s.id === task.sprintId);
                     this.taskForm = {
-                        ...task, // Copy all properties from the task
-                        selectedProjectIdForTask: sprint ? sprint.projectId : '', // Set temporary UI state
-                        prefilledProjectId: !!sprint, // Set UI flag
-                        prefilledSprintId: !!task.sprintId // Set UI flag
+                        ...task,
+                        selectedProjectIdForTask: sprint ? sprint.projectId : '',
+                        prefilledProjectId: !!sprint,
+                        prefilledSprintId: !!task.sprintId
                     };
                     this.editingTask = true;
                     this.showAddTaskModal = true;
                 },
                 openAddTaskModalForSlot(day,timeBlock,event){
-                    if(event && event.target.closest('.calendar-task')){return;} // Don't open add modal if clicking existing task
+                    if(event && event.target.closest('.calendar-task')){return;}
                     this.resetTaskForm();
                     this.taskForm.scheduledDay = day;
                     this.taskForm.scheduledTimeBlock = timeBlock;
-                    // Determine the week ID based on current calendar view
                     this.taskForm.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
                     this.showAddTaskModal = true;
                 },
@@ -983,131 +1060,187 @@
                     this.taskForm.prefilledSprintId = true;
                     this.showAddTaskModal = true;
                 },
-                async saveTask(){ // Added async
-                    if(!this.taskForm.name||!this.taskForm.selectedProjectIdForTask||!this.taskForm.sprintId||this.taskForm.estimatedHours<=0){alert('Please fill all required fields (Name, Project, Sprint, Est. Hours).');return;}
+                async saveTask(){
+                    if(!this.taskForm.name||!this.taskForm.selectedProjectIdForTask||!this.taskForm.sprintId||this.taskForm.estimatedHours<=0){alert('Please fill all required fields (Name, Project, Sprint, Est. Hours > 0).');return;}
                     if(this.taskForm.scheduledDay&&!this.taskForm.scheduledTimeBlock){alert('Please select a Time Block if scheduling for a Day.');return;}
 
                     const nowISO = new Date().toISOString();
-
-                    // Prepare data for saving (exclude temporary UI state fields)
-                    const taskDataToSave = {
-                         id: this.taskForm.id,
-                         sprintId: this.taskForm.sprintId,
-                         name: this.taskForm.name,
-                         estimatedHours: this.taskForm.estimatedHours,
-                         dependencies: this.taskForm.dependencies,
-                         assignedTo: this.taskForm.assignedTo || null, // Use null for DB if unassigned
-                         status: this.taskForm.status,
-                         scheduledDay: this.taskForm.scheduledDay || null,
-                         scheduledTimeBlock: this.taskForm.scheduledDay ? this.taskForm.scheduledTimeBlock : null, // Only save block if day is set
-                         scheduledWeekId: this.taskForm.scheduledDay ? this.getMonday(this.calendarDate).toISOString() : null, // Recalculate weekId on save
+                    const taskDataJS = {
+                         ...this.taskForm,
                          modified: nowISO
                     };
 
-                    // Clear schedule if day is cleared
-                    if (!taskDataToSave.scheduledDay) {
-                         taskDataToSave.scheduledTimeBlock = null;
-                         taskDataToSave.scheduledWeekId = null;
-                    }
+                     // Ensure schedule consistency
+                     if (!taskDataJS.scheduledDay) {
+                         taskDataJS.scheduledTimeBlock = '';
+                         taskDataJS.scheduledWeekId = null;
+                     } else {
+                         // Recalculate weekId based on current calendar view when saving scheduled task
+                         taskDataJS.scheduledWeekId = this.getMonday(this.calendarDate).toISOString();
+                     }
 
-                    if(this.editingTask){
-                        const index = this.tasks.findIndex(t => t.id === taskDataToSave.id);
-                        if(index !== -1){
-                             // TODO: Add Supabase update logic here
-                             // Map field names if needed (e.g., estimatedHours to estimated_hours)
-                             // const { error } = await supabase.from('tasks').update(mapToDbTask(taskDataToSave)).eq('id', taskDataToSave.id);
-                             this.tasks.splice(index, 1, { ...this.tasks[index], ...taskDataToSave }); // Merge to keep 'created'
+                    try {
+                        if (this.editingTask) {
+                            const { selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...updateDataJS } = taskDataJS;
+                            const updateDataDB = mapToDbTask(updateDataJS);
+
+                            const { data, error } = await supabase
+                                .from('tasks')
+                                .update(updateDataDB)
+                                .eq('id', updateDataJS.id)
+                                .select()
+                                .single();
+
+                            if (error) throw error;
+
+                            const updatedTask = mapFromDbTask(data);
+                            const index = this.tasks.findIndex(t => t.id === updatedTask.id);
+                            if(index !== -1){
+                                this.tasks.splice(index, 1, updatedTask);
+                            }
+                        } else {
+                             const { id, selectedProjectIdForTask, prefilledProjectId, prefilledSprintId, ...insertDataJS } = taskDataJS;
+                             insertDataJS.created = nowISO;
+                             const insertDataDB = mapToDbTask(insertDataJS);
+
+                             const { data, error } = await supabase
+                                .from('tasks')
+                                .insert(insertDataDB)
+                                .select()
+                                .single();
+
+                             if (error) throw error;
+
+                             const newTask = mapFromDbTask(data);
+                             this.tasks.push(newTask); // Add to end
                         }
-                    } else {
-                        taskDataToSave.id = generateId();
-                        taskDataToSave.created = nowISO;
-                        // TODO: Add Supabase insert logic here
-                        // const { error } = await supabase.from('tasks').insert([mapToDbTask(taskDataToSave)]);
-                        this.tasks.push(taskDataToSave);
+                        this.showAddTaskModal = false;
+                        this.updateCharts(); // Update relevant charts
+                    } catch (error) {
+                         console.error('Error saving task:', error);
+                         alert(`Failed to save task: ${error.message}`);
                     }
-                    this.showAddTaskModal = false;
                 },
-                 // START: New Function
-                async removeTaskFromCalendar(taskId) { // Added async
+                async removeTaskFromCalendar(taskId) {
                     if (!taskId) return;
                     const taskIndex = this.tasks.findIndex(t => t.id === taskId);
                     if (taskIndex !== -1) {
                         const nowISO = new Date().toISOString();
-                        const updatedTask = {
-                            ...this.tasks[taskIndex],
-                            scheduledDay: '', // Use empty string for local state
-                            scheduledTimeBlock: '',
-                            scheduledWeekId: null,
-                            modified: nowISO
+
+                        const updateDataDB = {
+                          scheduled_day: null,
+                          scheduled_time_block: null,
+                          scheduled_week_id: null,
+                          modified_at: nowISO
                         };
 
-                        // TODO: Add Supabase update logic here
-                        // Need to map empty strings to null for the database typically
-                        // try {
-                        //   const { error } = await supabase
-                        //     .from('tasks')
-                        //     .update({
-                        //       scheduled_day: null,
-                        //       scheduled_time_block: null,
-                        //       scheduled_week_id: null,
-                        //       modified_at: nowISO // Adjust column name if needed
-                        //     })
-                        //     .eq('id', taskId);
-                        //   if (error) throw error;
-                        // } catch (error) {
-                        //   console.error("Error removing task from calendar in DB:", error);
-                        //   // Maybe show error to user and don't close modal / revert local state?
-                        //   return; // Stop execution if DB update fails
-                        // }
+                        try {
+                          const { data, error } = await supabase
+                            .from('tasks')
+                            .update(updateDataDB)
+                            .eq('id', taskId)
+                            .select()
+                            .single();
 
-                        // Update local state *after* successful DB update (if implemented)
-                        this.tasks.splice(taskIndex, 1, updatedTask);
+                          if (error) throw error;
 
-                        this.showAddTaskModal = false; // Close modal
-                        console.log(`Task ${taskId} removed from calendar`);
+                          const updatedTask = mapFromDbTask(data);
+                          this.tasks.splice(taskIndex, 1, updatedTask);
+                          this.showAddTaskModal = false;
+                          console.log(`Task ${taskId} removed from calendar`);
+                          this.updateCharts();
 
+                        } catch (error) {
+                          console.error("Error removing task from calendar in DB:", error);
+                          alert(`Failed to remove task from calendar: ${error.message}`);
+                        }
                     } else {
                         console.error("Task not found for removal from calendar:", taskId);
                     }
                 },
-                // END: New Function
 
                 confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
-                async deleteTask(taskId){ // Added async
-                    // TODO: Add Supabase delete logic here
-                    // await supabase.from('tasks').delete().eq('id', taskId);
-                    this.tasks=this.tasks.filter(t=>t.id!==taskId);
+                async deleteTask(taskId){
+                    try {
+                        const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+                        if (error) throw error;
+
+                        this.tasks = this.tasks.filter(t => t.id !== taskId);
+                        this.updateCharts(); // Update relevant charts
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        alert(`Failed to delete task: ${error.message}`);
+                    }
                 },
                 countAllTasksByStatus(status){return this.tasks.filter(t=>t.status===status).length;},
 
                 resetTeamMemberForm(){this.teamMemberForm={name:'',role:'',color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')};},
-                async addTeamMember(){ // Added async
-                    if(!this.teamMemberForm.name||!this.teamMemberForm.role)return;
+                async addTeamMember(){
+                    if(!this.teamMemberForm.name||!this.teamMemberForm.role) { alert('Name and Role are required.'); return; }
                     if(this.teamMembers.some(m=>m.name.toLowerCase()===this.teamMemberForm.name.toLowerCase())){alert('A team member with this name already exists.');return;}
-                    const newMember = {...this.teamMemberForm,id:generateId()};
-                    // TODO: Add Supabase insert logic here
-                    // const { error } = await supabase.from('team_members').insert([newMember]);
-                    this.teamMembers.push(newMember);
-                    this.resetTeamMemberForm();
+
+                    const newMemberJS = {...this.teamMemberForm};
+                    const newMemberDB = mapToDbTeamMember(newMemberJS); // Map before insert
+
+                    try {
+                         const { data, error } = await supabase
+                            .from('team_members')
+                            .insert(newMemberDB)
+                            .select()
+                            .single();
+
+                        if (error) throw error;
+
+                        const addedMember = mapFromDbTeamMember(data);
+                        this.teamMembers.push(addedMember);
+                        this.resetTeamMemberForm();
+                        this.updateCharts();
+
+                    } catch (error) {
+                         console.error('Error adding team member:', error);
+                         alert(`Failed to add team member: ${error.message}`);
+                    }
                 },
-                removeTeamMember(memberId){ // Keep confirm sync for now, make action async
-                    const member=this.teamMembers.find(m=>m.id===memberId);
-                    if(!member)return;
+                confirmRemoveTeamMember(member){
+                     if(!member)return;
                     this.confirmTitle='Remove Team Member';
                     this.confirmMessage=`Are you sure you want to remove ${member.name}? Tasks assigned to them will become unassigned.`;
-                    this.confirmAction=async ()=>{ // Make the action async
-                        const memberName = member.name;
-                        // TODO: Add Supabase update tasks logic first
-                        // const { error: updateError } = await supabase.from('tasks').update({ assignedTo: null }).eq('assignedTo', memberName);
-                        // TODO: Add Supabase delete member logic
-                        // const { error: deleteError } = await supabase.from('team_members').delete().eq('id', memberId);
-
-                        // Update local state after DB changes
-                        this.tasks=this.tasks.map(task=>task.assignedTo===memberName?{...task,assignedTo:'',modified:new Date().toISOString()}:task);
-                        this.teamMembers=this.teamMembers.filter(m=>m.id!==memberId);
-                        if(this.selectedTeamMember===memberId)this.selectedTeamMember=null;
-                    };
+                    this.confirmAction = () => this.removeTeamMember(member.id, member.name);
                     this.showConfirmModal=true;
+                },
+                async removeTeamMember(memberId, memberName) {
+                    try {
+                        // 1. Update tasks assigned to this member to unassigned (null)
+                        const { error: updateError } = await supabase
+                            .from('tasks')
+                            .update({ assigned_to: null, modified_at: new Date().toISOString() })
+                            .eq('assigned_to', memberName); // Use name which is stored in tasks table
+
+                        if (updateError) throw new Error(`Failed to unassign tasks: ${updateError.message}`);
+
+                        // 2. Delete the team member
+                        const { error: deleteError } = await supabase
+                            .from('team_members')
+                            .delete()
+                            .eq('id', memberId);
+
+                        if (deleteError) throw new Error(`Failed to delete member: ${deleteError.message}`);
+
+                        // 3. Update local state if DB operations were successful
+                        this.tasks = this.tasks.map(task =>
+                            task.assignedTo === memberName
+                            ? { ...task, assignedTo: '', modified: new Date().toISOString() }
+                            : task
+                        );
+                        this.teamMembers = this.teamMembers.filter(m => m.id !== memberId);
+
+                        if (this.selectedTeamMember === memberId) this.selectedTeamMember = null;
+                        this.updateCharts(); // Update dashboard etc.
+
+                    } catch (error) {
+                        console.error('Error removing team member:', error);
+                        alert(`Failed to remove team member: ${error.message}`);
+                    }
                 },
                 countTasksAssignedToMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).length;},
                 calculateTotalHoursForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
@@ -1117,15 +1250,14 @@
                 getTaskPriorityColor(task) {
                     const priority = this.getTaskPriority(task);
                     switch (priority) {
-                        case 'High': return '#ef4444'; // Red
-                        case 'Medium': return '#f59e0b'; // Amber
-                        case 'Low': return '#10b981'; // Emerald/Green
-                        default: return '#9ca3af'; // Gray
+                        case 'High': return '#ef4444';
+                        case 'Medium': return '#f59e0b';
+                        case 'Low': return '#10b981';
+                        default: return '#9ca3af';
                     }
                 },
                  getContrastColor(bgColor) {
-                    if (!bgColor) return '#1f2937'; // Default dark text
-
+                    if (!bgColor) return '#1f2937';
                     const parseColor = (color) => {
                         if (color.startsWith('rgba')) {
                             const parts = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
@@ -1141,25 +1273,17 @@
                                 };
                             }
                         }
-                        return null; // Return null if parsing fails
+                        return null;
                     };
-
                     const rgb = parseColor(bgColor);
-                    if (!rgb) return '#1f2937'; // Fallback if color parsing fails
-
-                    // Calculate luminance using the WCAG formula
+                    if (!rgb) return '#1f2937';
                     const luminance = (0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b) / 255;
-
-                    // Choose contrast color based on luminance threshold (0.5 is common)
-                    return luminance > 0.5 ? '#1f2937' : '#ffffff'; // Dark text for light backgrounds, light text for dark backgrounds
+                    return luminance > 0.5 ? '#1f2937' : '#ffffff';
                 },
-
                 get scheduledTasksForWeek(){
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
                     return this.tasks.filter(task => {
-                        // Check if task is scheduled for the current view's week
                         const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO;
-                        // Check if task matches the selected team member filter (null means show all)
                         const memberMatch = this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember);
                         return weekMatch && memberMatch;
                     });
@@ -1171,16 +1295,15 @@
                     return[...filteredTasks].sort((a,b)=>{
                         const priorityA=this.getTaskPriority(a);
                         const priorityB=this.getTaskPriority(b);
-                        const priorityDiff=(priorityOrder[priorityA]??99)-(priorityOrder[priorityB]??99); // Use ?? 99 to handle null priority
+                        const priorityDiff=(priorityOrder[priorityA]??99)-(priorityOrder[priorityB]??99);
                         if(priorityDiff!==0)return priorityDiff;
-                        const statusDiff=(statusOrder[a.status] ?? 99)-(statusOrder[b.status] ?? 99); // Handle potential missing status
+                        const statusDiff=(statusOrder[a.status] ?? 99)-(statusOrder[b.status] ?? 99);
                         if(statusDiff!==0)return statusDiff;
-                        return a.name.localeCompare(b.name); // Fallback sort by name
+                        return a.name.localeCompare(b.name);
                     });
                 },
                  getHoursPerMemberForDayAndTime(day, timeBlock) {
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
-                    // Filter all tasks for the specific block, ignoring the team member filter here
                     const tasksInBlock = this.tasks.filter(task =>
                         task.scheduledWeekId === mondayOfViewWeekISO &&
                         task.scheduledDay === day &&
@@ -1190,18 +1313,16 @@
                     tasksInBlock.forEach(task => {
                         const memberName = task.assignedTo || 'Unassigned';
                         const hours = Number(task.estimatedHours) || 0;
-                        if (hours > 0) { // Only count tasks with estimated hours > 0
+                        if (hours > 0) {
                             hoursByMember[memberName] = (hoursByMember[memberName] || 0) + hours;
                         }
                     });
                     const result = Object.entries(hoursByMember)
                         .map(([name, hours]) => ({ name, hours }))
-                        .filter(item => item.hours > 0) // Ensure we don't show members with 0 hours in this block
+                        .filter(item => item.hours > 0)
                         .sort((a, b) => {
-                            // Sort Unassigned to the bottom
                             if (a.name === 'Unassigned' && b.name !== 'Unassigned') return 1;
                             if (a.name !== 'Unassigned' && b.name === 'Unassigned') return -1;
-                            // Sort other members alphabetically
                             return a.name.localeCompare(b.name);
                         });
                     return result;
@@ -1211,20 +1332,16 @@
                 getTotalHoursForDayAndTime(day,timeBlock){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
                 getTotalHoursForDay(day){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
                 getTotalWeeklyHours(){return this.scheduledTasksForWeek.reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
-                previousWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()-7);this.calendarDate=newDate;},
-                nextWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()+7);this.calendarDate=newDate;},
+                previousWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()-7);this.calendarDate=newDate; this.updateCharts();},
+                nextWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()+7);this.calendarDate=newDate; this.updateCharts();},
                 formatWeekRange(){const startOfWeek=this.getMonday(this.calendarDate);const endOfWeek=new Date(startOfWeek);endOfWeek.setDate(startOfWeek.getDate()+(this.daysOfWeek.length-1));const options={month:'short',day:'numeric'};const startStr=startOfWeek.toLocaleDateString('en-US',options);const endStr=endOfWeek.toLocaleDateString('en-US',options);const year=endOfWeek.getFullYear();return`${startStr} - ${endStr}, ${year}`;},
                 formatDayDate(dayIndex){const date=this.getMonday(this.calendarDate);date.setDate(date.getDate()+dayIndex);return`${date.getMonth()+1}/${date.getDate()}`;},
-                getMonday(d){const date=new Date(d);const day=date.getDay();const diff=date.getDate()-day+(day===0?-6:1); // Adjust for Sunday (0) being start of week in JS
-                const monday=new Date(date.setDate(diff));monday.setHours(0,0,0,0); // Set to midnight
-                return monday;},
-                getWeeklyTasks(){return this.scheduledTasksForWeek;}, // Helper getter
+                getMonday(d){const date=new Date(d);const day=date.getDay();const diff=date.getDate()-day+(day===0?-6:1); const monday=new Date(date.setDate(diff));monday.setHours(0,0,0,0); return monday;},
+                getWeeklyTasks(){return this.scheduledTasksForWeek;},
                 countWeeklyTasksByStatus(status){return this.getWeeklyTasks().filter(task=>task.status===status).length;},
                 countWeeklyTasksByPriority(priority){return this.getWeeklyTasks().filter(task=>this.getTaskPriority(task)===priority).length;},
 
-                // START: New Date Picker Functions
                 openDatePicker() {
-                    // Set the picker to show the month of the currently viewed calendar date
                     this.datePickerDate = new Date(this.calendarDate);
                     this.showDatePickerModal = true;
                 },
@@ -1238,10 +1355,10 @@
                     this.datePickerDate = new Date(this.datePickerDate.getFullYear(), this.datePickerDate.getMonth() + 1, 1);
                 },
                 selectDateFromPicker(dayDate) {
-                    if (!dayDate) return; // Ignore clicks on empty cells
-                    this.calendarDate = new Date(dayDate); // Update the main calendar view date
+                    if (!dayDate) return;
+                    this.calendarDate = new Date(dayDate);
                     this.closeDatePicker();
-                    // The main calendar view will automatically update because it watches calendarDate
+                    this.updateCharts();
                 },
                 isToday(date) {
                     if (!date) return false;
@@ -1260,14 +1377,11 @@
                     if (!date) return false;
                     const startOfWeek = this.getMonday(this.calendarDate);
                     const endOfWeek = new Date(startOfWeek);
-                    endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1)); // Adjust based on your daysOfWeek length (5 for Mon-Fri)
-
-                    // Normalize dates to midnight for comparison
+                    endOfWeek.setDate(startOfWeek.getDate() + (this.daysOfWeek.length - 1));
                     const compareDate = new Date(date);
                     compareDate.setHours(0, 0, 0, 0);
                     startOfWeek.setHours(0, 0, 0, 0);
                     endOfWeek.setHours(0, 0, 0, 0);
-
                     return compareDate >= startOfWeek && compareDate <= endOfWeek;
                 },
                 generateCalendarDays() {
@@ -1275,25 +1389,22 @@
                     const month = this.datePickerDate.getMonth();
                     const firstDayOfMonth = new Date(year, month, 1);
                     const daysInMonth = new Date(year, month + 1, 0).getDate();
-                    // Adjust startDay: 0=Sun, 1=Mon, ..., 6=Sat. We want Mon=0.
-                    let startDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1; // Adjust to Mon=0, Sun=6
+                    let startDayOfWeek = firstDayOfMonth.getDay();
+                    startDayOfWeek = (startDayOfWeek === 0) ? 6 : startDayOfWeek - 1;
 
                     const days = [];
                     const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-                    // Add days from previous month
                     for (let i = startDayOfWeek - 1; i >= 0; i--) {
                         days.push({
                             date: new Date(year, month - 1, daysInPrevMonth - i),
                             dayOfMonth: daysInPrevMonth - i,
                             isCurrentMonth: false,
-                            isToday: false, // Not today if not current month
-                            isInCurrentWeek: false // Not in current week if not current month
+                            isToday: false,
+                            isInCurrentWeek: false
                         });
                     }
 
-                    // Add days from current month
                     for (let i = 1; i <= daysInMonth; i++) {
                         const currentDate = new Date(year, month, i);
                         days.push({
@@ -1305,8 +1416,7 @@
                         });
                     }
 
-                    // Add days from next month to fill the grid (usually 6 rows * 7 cols = 42 cells)
-                    const remainingCells = 42 - days.length; // Assuming 6 rows is always enough
+                    const remainingCells = 42 - days.length;
                     for (let i = 1; i <= remainingCells; i++) {
                         days.push({
                             date: new Date(year, month + 1, i),
@@ -1321,22 +1431,32 @@
                 formatDatePickerMonthYear() {
                     return this.datePickerDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
                 },
-                // END: New Date Picker Functions
 
                 destroyCharts(){if(this.taskStatusChartInstance){this.taskStatusChartInstance.destroy();this.taskStatusChartInstance=null;}if(this.weeklyWorkloadChartInstance){this.weeklyWorkloadChartInstance.destroy();this.weeklyWorkloadChartInstance=null;}},
                 initCharts(){this.$nextTick(()=>{this.destroyCharts();this.initTaskStatusChart();this.initWeeklyWorkloadChart();});},
-                initTaskStatusChart(){const ctx=document.getElementById('taskStatusChart')?.getContext('2d');if(!ctx)return;const statuses=['Not Started','In Progress','Blocked','Done'];const counts=statuses.map(status=>this.countAllTasksByStatus(status));const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';this.taskStatusChartInstance=new Chart(ctx,{type:'doughnut',data:{labels:statuses,datasets:[{data:counts,backgroundColor:[isDarkMode?'rgba(107, 114, 128, 0.7)':'rgba(156, 163, 175, 0.8)',isDarkMode?'rgba(96, 165, 250, 0.7)':'rgba(59, 130, 246, 0.8)',isDarkMode?'rgba(248, 113, 113, 0.7)':'rgba(239, 68, 68, 0.8)',isDarkMode?'rgba(52, 211, 153, 0.7)':'rgba(16, 185, 129, 0.8)'],borderColor:isDarkMode?'#1f2937':'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,padding:15,boxWidth:12,}},tooltip:{callbacks:{label:function(context){let label=context.label||'';if(label){label+=': ';}if(context.parsed!==null){label+=context.parsed;}const total=context.dataset.data.reduce((a,b)=>a+b,0);const percentage=total>0?Math.round((context.parsed/total)*100):0;label+=` (${percentage}%)`;return label;}}}}}});},
+                initTaskStatusChart(){
+                    if (this.currentView !== 'dashboard') return;
+                    const ctx=document.getElementById('taskStatusChart')?.getContext('2d');if(!ctx)return;
+                    const statuses=['Not Started','In Progress','Blocked','Done'];const counts=statuses.map(status=>this.countAllTasksByStatus(status));const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';
+
+                    if (this.taskStatusChartInstance) this.taskStatusChartInstance.destroy();
+
+                    this.taskStatusChartInstance=new Chart(ctx,{type:'doughnut',data:{labels:statuses,datasets:[{data:counts,backgroundColor:[isDarkMode?'rgba(107, 114, 128, 0.7)':'rgba(156, 163, 175, 0.8)',isDarkMode?'rgba(96, 165, 250, 0.7)':'rgba(59, 130, 246, 0.8)',isDarkMode?'rgba(248, 113, 113, 0.7)':'rgba(239, 68, 68, 0.8)',isDarkMode?'rgba(52, 211, 153, 0.7)':'rgba(16, 185, 129, 0.8)'],borderColor:isDarkMode?'#1f2937':'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,padding:15,boxWidth:12,}},tooltip:{callbacks:{label:function(context){let label=context.label||'';if(label){label+=': ';}if(context.parsed!==null){label+=context.parsed;}const total=context.dataset.data.reduce((a,b)=>a+b,0);const percentage=total>0?Math.round((context.parsed/total)*100):0;label+=` (${percentage}%)`;return label;}}}}}});
+                },
                 initWeeklyWorkloadChart(){
+                     if (this.currentView !== 'dashboard' && this.currentView !== 'calendar') return;
                     const ctx=document.getElementById('weeklyWorkloadChart')?.getContext('2d');
                     if(!ctx)return;
 
-                    // Calculate data based on current view's week and filter
                     const mondayOfViewWeekISO = this.getMonday(this.calendarDate).toISOString();
                     const dailyHours = this.daysOfWeek.map((day) => {
                         return this.tasks
                             .filter(task => {
                                 const weekMatch = task.scheduledWeekId === mondayOfViewWeekISO && task.scheduledDay === day;
-                                const memberMatch = this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember);
+                                // Apply team member filter only if not on dashboard view
+                                const memberMatch = this.currentView !== 'dashboard'
+                                    ? (this.selectedTeamMember === null || task.assignedTo === this.getTeamMemberNameById(this.selectedTeamMember))
+                                    : true; // Show all team data on dashboard
                                 return weekMatch && memberMatch;
                             })
                             .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
@@ -1347,34 +1467,23 @@
                     const gridColor=isDarkMode?'rgba(255, 255, 255, 0.1)':'rgba(0, 0, 0, 0.05)';
                     const barColor=isDarkMode?'rgba(129, 128, 228, 0.7)':'rgba(93, 92, 222, 0.8)';
 
-                    // Destroy existing chart instance if it exists before creating a new one
                      if (this.weeklyWorkloadChartInstance) {
                          this.weeklyWorkloadChartInstance.destroy();
-                         this.weeklyWorkloadChartInstance = null;
                      }
 
                     this.weeklyWorkloadChartInstance=new Chart(ctx,{type:'bar',data:{labels:this.daysOfWeek.map(d=>d.substring(0,3)),datasets:[{label:'Est. Hours Scheduled',data:dailyHours,backgroundColor:barColor,borderRadius:4,}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor},title:{display:true,text:'Hours',color:textColor}},x:{grid:{display:false},ticks:{color:textColor}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(context){return` ${context.parsed.y} hours`;}}}}}});
-
                 },
-                updateCharts(){
-                    // This function can now specifically update data or re-init if needed
-                    if(this.currentView === 'dashboard'){
-                        this.initTaskStatusChart(); // Re-init doughnut chart
-                        this.initWeeklyWorkloadChart(); // Re-init bar chart
-                    } else if (this.currentView === 'calendar') {
-                         // Only update/re-init the weekly workload chart if it's visible
-                         if (document.getElementById('weeklyWorkloadChart')) {
+                 updateCharts(){
+                    this.$nextTick(() => {
+                         if(this.currentView === 'dashboard'){
+                            this.initTaskStatusChart();
                             this.initWeeklyWorkloadChart();
-                         }
-                    }
-                },
-                isTaskInCurrentWeek(task, mondayOfViewWeek) {
-                    // Deprecated or should use scheduledWeekId comparison
-                    if (!task.scheduledDay || !task.scheduledTimeBlock || !task.scheduledWeekId) {
-                         return false;
-                     }
-                     // Compare the task's stored week ID with the current view's Monday ID
-                     return task.scheduledWeekId === mondayOfViewWeek.toISOString();
+                        } else if (this.currentView === 'calendar') {
+                             if (document.getElementById('weeklyWorkloadChart')) {
+                                this.initWeeklyWorkloadChart();
+                             }
+                        }
+                    });
                 },
                 formatDate(dateString){if(!dateString)return'N/A';try{const date=new Date(dateString+'T00:00:00');if(isNaN(date))return'Invalid Date';return date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}catch(e){console.error("Error formatting date:",dateString,e);return'Invalid Date';}},
                 formatDateForInput(date){if(!date||!(date instanceof Date)||isNaN(date))return'';try{return date.toISOString().split('T')[0];}catch(e){console.error("Error formatting date for input:",date,e);return'';}}
