@@ -1,0 +1,774 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Workload Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.12.3/dist/cdn.min.js"></script>
+    
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script>
+  const supabaseUrl = 'https://qrzcujypjybpezlyondb.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFyemN1anlwanlicGV6bHlvbmRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4OTUxNjIsImV4cCI6MjA1ODQ3MTE2Mn0.FFyDbFrjkvPh5eQx9RdaQP_P0pa8Yzd1C9rSaOyMzhw';
+  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+<script>
+  // Fetch Projects
+  async function fetchProjects() {
+    const { data, error } = await supabase.from('projects').select('*');
+    if (error) {
+      console.error('Projects error:', error);
+      return [];
+    }
+    return data;
+  }
+
+  // Fetch Team Members
+  async function fetchTeamMembers() {
+    const { data, error } = await supabase.from('team_members').select('*');
+    if (error) {
+      console.error('Team Members error:', error);
+      return [];
+    }
+    return data;
+  }
+
+  // Fetch Sprints
+  async function fetchSprints() {
+    const { data, error } = await supabase.from('sprints').select('*');
+    if (error) {
+      console.error('Sprints error:', error);
+      return [];
+    }
+    return data;
+  }
+
+  // Fetch Tasks
+  async function fetchTasks() {
+    const { data, error } = await supabase.from('tasks').select('*');
+    if (error) {
+      console.error('Tasks error:', error);
+      return [];
+    }
+    return data;
+  }
+
+  // Example usage:
+  async function showAllData() {
+    const projects = await fetchProjects();
+    const teamMembers = await fetchTeamMembers();
+    const sprints = await fetchSprints();
+    const tasks = await fetchTasks();
+
+    console.log('Projects:', projects);
+    console.log('Team Members:', teamMembers);
+    console.log('Sprints:', sprints);
+    console.log('Tasks:', tasks);
+
+    // Display logic here...
+  }
+
+  // Call this function when the page loads:
+  showAllData();
+</script>
+
+<body>
+  <h2>Projects</h2>
+  <div id="project-list"></div>
+
+  <script>
+    async function displayProjects() {
+      const projects = await fetchProjects();
+      const projectList = document.getElementById('project-list');
+      projects.forEach(project => {
+        const item = document.createElement('div');
+        item.textContent = `${project.name} (${project.status})`;
+        projectList.appendChild(item);
+      });
+    }
+
+    displayProjects();
+  </script>
+</body>
+
+
+<script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        'primary-light': '#8180E7',
+                        'primary-dark': '#4847B3',
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .status-not-started { border-left: 4px solid #9ca3af; }
+        .status-in-progress { border-left: 4px solid #3b82f6; }
+        .status-blocked { border-left: 4px solid #ef4444; }
+        .status-done { border-left: 4px solid #10b981; }
+        .calendar-task { border-radius: 4px; padding: 4px 8px; margin-bottom: 4px; font-size: 0.75rem; cursor: grab; transition: all 0.2s; position: relative; overflow: hidden; border-left-width: 4px; }
+        .calendar-task:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); filter: brightness(1.1); }
+        .calendar-task.dragging { opacity: 0.5; cursor: grabbing; }
+        .time-block { min-height: 140px; transition: background-color 0.2s; position: relative; cursor: pointer; }
+        .time-block:hover { background-color: rgba(93, 92, 222, 0.05); }
+        .dark .time-block:hover { background-color: rgba(93, 92, 222, 0.1); }
+        .time-block.drag-over { background-color: rgba(93, 92, 222, 0.1); }
+        .dark .time-block.drag-over { background-color: rgba(93, 92, 222, 0.2); }
+        .time-block-hours { position: absolute; bottom: 4px; right: 4px; font-size: 0.65rem; font-weight: 500; color: #6b7280; padding: 2px 4px; background-color: rgba(255, 255, 255, 0.7); border-radius: 4px; pointer-events: none; }
+        .dark .time-block-hours { color: #9ca3af; background-color: rgba(55, 65, 81, 0.7); }
+        .add-task-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; color: #a0aec0; font-size: 0.75rem; pointer-events: none; opacity: 0; transition: opacity 0.2s ease-in-out; background-color: rgba(255, 255, 255, 0.8); padding: 2px 6px; border-radius: 4px; }
+        .dark .add-task-indicator { color: #718096; background-color: rgba(55, 65, 81, 0.8); }
+        .time-block:hover .add-task-indicator { opacity: 1; }
+        .add-task-indicator svg { width: 0.75rem; height: 0.75rem; margin-right: 4px; }
+        .dark .calendar-task { box-shadow: 0 1px 3px rgba(255,255,255,0.05); }
+        .dark .calendar-task:hover { box-shadow: 0 2px 4px rgba(255,255,255,0.1); filter: brightness(1.2); }
+        .chart-container { height: 300px; max-width: 100%; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.7); }
+        .dark ::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.3); }
+        .dark ::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.5); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideDown { from { max-height: 0; opacity: 0; transform: translateY(-10px); } to { max-height: 1000px; opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { max-height: 1000px; opacity: 1; transform: translateY(0); } to { max-height: 0; opacity: 0; transform: translateY(-10px); } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        .animate-slide-down { animation: slideDown 0.4s ease-in-out; overflow: hidden; }
+        .animate-slide-up { animation: slideUp 0.3s ease-in-out; overflow: hidden; }
+        .hover-card-effect { transition: all 0.2s ease-in-out; }
+        .hover-card-effect:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .dark .hover-card-effect:hover { box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1); }
+        .sprint-item { transition: background-color 0.2s; }
+        .sprint-item:hover { background-color: #f9fafb; } /* Tailwind gray-50 */
+        .dark .sprint-item:hover { background-color: #1f2937; } /* Tailwind gray-800 slightly lighter than 750 */
+        .task-item-in-sprint { transition: background-color 0.2s; }
+        .task-item-in-sprint:hover { background-color: #f3f4f6; } /* Tailwind gray-100 */
+        .dark .task-item-in-sprint:hover { background-color: #374151; } /* Tailwind gray-700 */
+        /* Styles for project status tabs */
+        .tab-button { padding: 8px 16px; border-radius: 6px 6px 0 0; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; border-bottom: 2px solid transparent; }
+        .tab-button.active { border-bottom-color: #5D5CDE; color: #5D5CDE; }
+        .tab-button:not(.active) { color: #6b7280; }
+        .dark .tab-button:not(.active) { color: #9ca3af; }
+        .tab-button:not(.active):hover { background-color: #f3f4f6; color: #374151;}
+        .dark .tab-button:not(.active):hover { background-color: #374151; color: #d1d5db;}
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
+    <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen">
+        <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <h1 class="text-xl font-bold text-primary dark:text-primary-light">Tech Workload Manager</h1>
+                    <nav>
+                        <ul class="flex space-x-1 sm:space-x-4">
+                            <li>
+                                <button @click="setView('projects')"
+                                    :class="{'bg-primary text-white': currentView === 'projects', 'hover:bg-gray-100 dark:hover:bg-gray-700': currentView !== 'projects'}"
+                                    class="px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                    Projects & Sprints
+                                </button>
+                            </li>
+                            <li>
+                                <button @click="setView('calendar')"
+                                    :class="{'bg-primary text-white': currentView === 'calendar', 'hover:bg-gray-100 dark:hover:bg-gray-700': currentView !== 'calendar'}"
+                                    class="px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                    Calendar
+                                </button>
+                            </li>
+                            <li>
+                                <button @click="setView('dashboard')"
+                                    :class="{'bg-primary text-white': currentView === 'dashboard', 'hover:bg-gray-100 dark:hover:bg-gray-700': currentView !== 'dashboard'}"
+                                    class="px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                                    Dashboard
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div x-show="currentView === 'projects'" class="animate-fade-in">
+                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold">Projects & Sprints</h2>
+                    <button @click="resetProjectForm(); showAddProjectModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        Add Project
+                    </button>
+                </div>
+
+                <!-- Project Status Tabs -->
+                <div class="mb-6 border-b border-gray-200 dark:border-gray-700 flex space-x-4">
+                    <button @click="selectedProjectStatusTab = 'In Progress'"
+                            class="tab-button"
+                            :class="{ 'active': selectedProjectStatusTab === 'In Progress' }">
+                        In Progress (<span x-text="projects.filter(p => p.status === 'In Progress').length"></span>)
+                    </button>
+                    <button @click="selectedProjectStatusTab = 'Not Started'"
+                            class="tab-button"
+                            :class="{ 'active': selectedProjectStatusTab === 'Not Started' }">
+                        Not Started (<span x-text="projects.filter(p => p.status === 'Not Started').length"></span>)
+                    </button>
+                    <button @click="selectedProjectStatusTab = 'Done'"
+                            class="tab-button"
+                            :class="{ 'active': selectedProjectStatusTab === 'Done' }">
+                        Completed (<span x-text="projects.filter(p => p.status === 'Done').length"></span>)
+                    </button>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Filtered Project List -->
+                    <template x-for="project in projects.filter(p => p.status === selectedProjectStatusTab)" :key="project.id">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover-card-effect flex flex-col"
+                             :class="{'border-l-4 border-red-500': project.priority === 'High',
+                                      'border-l-4 border-yellow-500': project.priority === 'Medium',
+                                      'border-l-4 border-green-500': project.priority === 'Low'}">
+                            <div class="p-4">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100" x-text="project.name"></h3>
+                                    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+                                        <span x-text="project.status" class="text-xs px-2 py-1 rounded-full"
+                                              :class="{'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200': project.status === 'Not Started',
+                                                      'bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-100': project.status === 'In Progress',
+                                                      'bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-100': project.status === 'Done'}"></span>
+                                        <button @click="editProject(project)" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" title="Edit Project"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
+                                        <button @click="confirmDeleteProject(project)" class="text-gray-500 dark:text-gray-400 hover:text-red-500" title="Delete Project"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 break-words" x-text="project.description"></p>
+                                <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-4 text-gray-700 dark:text-gray-300">
+                                    <div><span class="font-medium">Priority:</span> <span x-text="project.priority" :class="{'text-red-500': project.priority === 'High', 'text-yellow-500': project.priority === 'Medium', 'text-green-500': project.priority === 'Low'}"></span></div>
+                                    <div><span class="font-medium">Deadline:</span> <span x-text="formatDate(project.deadline)"></span></div>
+                                </div>
+                                <div class="text-xs mb-2" x-show="project.notes"><span class="font-medium text-gray-700 dark:text-gray-300">Notes:</span><p class="mt-1 text-gray-600 dark:text-gray-400 break-words" x-text="project.notes"></p></div>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-150" @click="expandedProjectId = (expandedProjectId === project.id ? null : project.id)">
+                                <span class="text-sm font-medium text-primary dark:text-primary-light">Sprints (<span x-text="getSprintsForProject(project.id).length"></span>)</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform" :class="{'rotate-180': expandedProjectId === project.id}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                            </div>
+                            <div x-show="expandedProjectId === project.id" x-transition:enter="animate-slide-down" x-transition:leave="animate-slide-up" class="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-700 p-4 space-y-3">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h4 class="text-md font-semibold text-primary-light">Sprints for <span x-text="project.name"></span></h4>
+                                    <button @click="resetSprintForm(project.id); showAddSprintModal = true" class="bg-primary hover:bg-primary-dark text-white px-3 py-1 rounded-md text-xs font-medium transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>Add Sprint
+                                    </button>
+                                </div>
+                                <div x-show="getSprintsForProject(project.id).length === 0" class="text-center text-sm text-gray-500 dark:text-gray-400 py-4">No sprints added to this project yet.</div>
+                                <template x-for="sprint in getSprintsForProject(project.id)" :key="sprint.id">
+                                    <div class="sprint-item bg-white dark:bg-gray-800 rounded shadow-sm border dark:border-gray-600">
+                                        <!-- Sprint Header / Toggle -->
+                                        <div class="flex justify-between items-center p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700" @click="expandedSprintId = (expandedSprintId === sprint.id ? null : sprint.id)">
+                                            <div>
+                                                <h5 class="font-medium text-sm text-gray-900 dark:text-gray-100" x-text="sprint.name"></h5>
+                                                <div class="text-xs text-gray-600 dark:text-gray-400 mt-1"><span x-text="`${formatDate(sprint.startDate)} to ${formatDate(sprint.endDate)}`"></span></div>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <!-- Sprint Task Counts -->
+                                                <div class="hidden sm:flex flex-wrap gap-1 text-[10px] flex-shrink-0 mr-2">
+                                                    <span class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-600 rounded text-gray-700 dark:text-gray-200" x-text="`${countTasksByStatus(sprint.id, 'Not Started')} NS`"></span>
+                                                    <span class="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'In Progress')} IP`"></span>
+                                                    <span class="px-1.5 py-0.5 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Blocked')} B`"></span>
+                                                    <span class="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100 rounded" x-text="`${countTasksByStatus(sprint.id, 'Done')} D`"></span>
+                                                </div>
+                                                 <!-- Sprint Progress -->
+                                                <div class="w-16 mr-2 hidden md:block">
+                                                    <div class="flex justify-between text-xs mb-0.5 text-gray-700 dark:text-gray-300"><span class="sr-only">Progress</span> <span x-text="`${calculateSprintProgress(sprint.id)}%`"></span></div>
+                                                    <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full transition-width duration-500" :style="`width: ${calculateSprintProgress(sprint.id)}%`"></div></div>
+                                                </div>
+                                                <!-- Sprint Actions & Expander -->
+                                                <button @click.stop="editSprint(sprint)" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Edit Sprint"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /> </svg></button>
+                                                <button @click.stop="confirmDeleteSprint(sprint)" class="text-gray-500 dark:text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Delete Sprint"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /> </svg></button>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500 dark:text-gray-400 transition-transform ml-2 flex-shrink-0" :class="{'rotate-180': expandedSprintId === sprint.id}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                            </div>
+                                        </div>
+
+                                        <!-- Expanded Sprint Task List -->
+                                        <div x-show="expandedSprintId === sprint.id" x-transition:enter="animate-slide-down" x-transition:leave="animate-slide-up" class="bg-gray-50 dark:bg-gray-750 border-t dark:border-gray-600 p-3 space-y-2">
+                                            <div class="flex justify-between items-center mb-2">
+                                                 <h6 class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Tasks (<span x-text="getTasksForSprint(sprint.id).length"></span>)</h6>
+                                                 <button @click.stop="openAddTaskForSprint(sprint.id, project.id)" class="bg-primary-light hover:bg-primary text-white px-2 py-1 rounded text-xs font-medium transition-colors">
+                                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline mr-0.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>Add Task
+                                                 </button>
+                                            </div>
+                                            <div x-show="getTasksForSprint(sprint.id).length === 0" class="text-center text-xs text-gray-500 dark:text-gray-400 py-2">No tasks in this sprint yet.</div>
+                                            <template x-for="task in getTasksForSprint(sprint.id)" :key="task.id">
+                                                <div class="task-item-in-sprint flex justify-between items-center bg-white dark:bg-gray-800 p-2 rounded border dark:border-gray-700">
+                                                    <div class="flex items-center space-x-2 overflow-hidden">
+                                                         <span class="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
+                                                               :class="{ 'status-not-started bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200': task.status === 'Not Started',
+                                                                         'status-in-progress bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100': task.status === 'In Progress',
+                                                                         'status-blocked bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-100': task.status === 'Blocked',
+                                                                         'status-done bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-100': task.status === 'Done'}"
+                                                               x-text="task.status === 'Not Started' ? 'NS' : task.status === 'In Progress' ? 'IP' : task.status === 'Blocked' ? 'B' : 'D'"
+                                                               :title="task.status"></span>
+                                                        <span class="text-sm text-gray-800 dark:text-gray-100 truncate" x-text="task.name" :title="task.name"></span>
+                                                    </div>
+                                                    <div class="flex items-center space-x-2 flex-shrink-0 ml-2">
+                                                         <span class="text-xs text-gray-500 dark:text-gray-400" x-text="task.assignedTo ? task.assignedTo.split(' ')[0] : 'Unassigned'" :title="task.assignedTo || 'Unassigned'"></span>
+                                                         <span class="text-xs font-medium text-gray-600 dark:text-gray-300" x-text="`${task.estimatedHours}h`"></span>
+                                                         <button @click.stop="editTask(task)" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Edit Task"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /> </svg></button>
+                                                         <button @click.stop="confirmDeleteTask(task)" class="text-gray-500 dark:text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" title="Delete Task"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /> </svg></button>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                     <!-- Message when a tab has no projects -->
+                    <div x-show="projects.filter(p => p.status === selectedProjectStatusTab).length === 0" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2" x-text="`No projects are currently '${selectedProjectStatusTab}'`"></h3>
+                        <p class="text-gray-500 dark:text-gray-400 mb-4">Add a new project or update the status of existing ones.</p>
+                        <button @click="resetProjectForm(); showAddProjectModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Add Project</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calendar View (unchanged structure) -->
+            <div x-show="currentView === 'calendar'" class="animate-fade-in">
+                <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold">Weekly Calendar</h2>
+                    <div class="flex flex-wrap items-center space-x-4 gap-y-2">
+                        <div class="flex items-center space-x-2 bg-white dark:bg-gray-800 p-1 rounded-md shadow-sm">
+                            <button @click="previousWeek()" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Previous Week"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                            <span x-text="formatWeekRange()" class="text-sm md:text-base font-medium px-2 whitespace-nowrap"></span>
+                            <button @click="nextWeek()" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" title="Next Week"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                        </div>
+                        <button @click="showManageTeamMembersModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg> Manage Team</button>
+                    </div>
+                </div>
+                <div class="mb-4 overflow-x-auto pb-2">
+                    <div class="flex space-x-2">
+                        <button @click="selectedTeamMember = null" class="px-3 py-1 text-sm rounded-full transition-colors flex-shrink-0" :class="selectedTeamMember === null ? 'bg-primary text-white font-medium' : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'">All Team</button>
+                        <template x-for="member in teamMembers" :key="member.id">
+                            <button @click="selectedTeamMember = member.id" class="px-3 py-1 text-sm rounded-full transition-colors flex items-center flex-shrink-0" :class="selectedTeamMember === member.id ? 'bg-primary text-white font-medium' : 'bg-white dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'"><span class="w-2 h-2 rounded-full mr-2" :style="`background-color: ${member.color}`"></span><span x-text="member.name"></span></button>
+                        </template>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <div class="min-w-[800px] grid grid-cols-6 gap-2 mb-8">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-2 flex flex-col">
+                            <div class="h-12"></div>
+                            <div class="flex-grow flex flex-col justify-around py-2"><div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Morning</div><div class="font-medium text-sm text-center text-gray-700 dark:text-gray-300">Afternoon</div></div>
+                            <div class="h-8"></div>
+                        </div>
+                        <template x-for="(day, index) in daysOfWeek" :key="index">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden flex flex-col">
+                                <div class="bg-gray-50 dark:bg-gray-700 p-2 text-center border-b dark:border-gray-700 h-12 flex flex-col justify-center"><div class="font-semibold text-sm text-gray-800 dark:text-gray-200" x-text="day"></div><div class="text-xs text-gray-500 dark:text-gray-400" x-text="formatDayDate(index)"></div></div>
+                                <div class="flex-grow flex flex-col">
+                                    <div class="flex-1 p-2 border-b dark:border-gray-700 overflow-y-auto time-block" :id="`block-${day}-Morning`" @dragover.prevent="handleDragOver($event)" @dragleave.prevent="handleDragLeave($event)" @drop.prevent="handleDrop($event, day, 'Morning')" @click="openAddTaskModalForSlot(day, 'Morning', $event)">
+                                         <div class="add-task-indicator"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Add Task</div>
+                                        <template x-for="task in getTasksForDayAndTime(day, 'Morning')" :key="task.id">
+                                            <div class="calendar-task text-gray-900 dark:text-gray-100" :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }" :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }" draggable="true" @dragstart="handleDragStart($event, task)" @dragend="handleDragEnd($event)" @click.stop="editTask(task)" :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
+                                                <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
+                                            </div>
+                                        </template>
+                                        <div x-show="getTotalHoursForDayAndTime(day, 'Morning') > 0" class="time-block-hours"><span x-text="getTotalHoursForDayAndTime(day, 'Morning') + 'h'"></span></div>
+                                    </div>
+                                    <div class="flex-1 p-2 overflow-y-auto time-block" :id="`block-${day}-Afternoon`" @dragover.prevent="handleDragOver($event)" @dragleave.prevent="handleDragLeave($event)" @drop.prevent="handleDrop($event, day, 'Afternoon')" @click="openAddTaskModalForSlot(day, 'Afternoon', $event)">
+                                         <div class="add-task-indicator"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg> Add Task</div>
+                                        <template x-for="task in getTasksForDayAndTime(day, 'Afternoon')" :key="task.id">
+                                             <div class="calendar-task text-gray-900 dark:text-gray-100" :style="{ backgroundColor: getTeamMemberColor(task.assignedTo, 0.2), borderColor: getTaskPriorityColor(task) }" :class="{ 'border-red-500': getTaskPriority(task) === 'High', 'border-yellow-500': getTaskPriority(task) === 'Medium', 'border-green-500': getTaskPriority(task) === 'Low', 'border-gray-400': !getTaskPriority(task) }" draggable="true" @dragstart="handleDragStart($event, task)" @dragend="handleDragEnd($event)" @click.stop="editTask(task)" :title="`${task.name} (${task.estimatedHours}h)\nProject: ${getProjectNameForTask(task)}\nPriority: ${getTaskPriority(task)}\nStatus: ${task.status}\nAssigned: ${task.assignedTo || 'Unassigned'}`">
+                                                <div class="font-medium text-xs truncate" x-text="task.name"></div><div class="text-xs opacity-75 truncate" x-text="`${task.estimatedHours}h · ${task.assignedTo || 'Unassigned'}`"></div><div class="text-[0.65rem] opacity-70 truncate mt-0.5 italic" x-text="`${getProjectNameForTask(task)}`"></div>
+                                            </div>
+                                        </template>
+                                        <div x-show="getTotalHoursForDayAndTime(day, 'Afternoon') > 0" class="time-block-hours"><span x-text="getTotalHoursForDayAndTime(day, 'Afternoon') + 'h'"></span></div>
+                                    </div>
+                                </div>
+                                <div class="p-2 bg-gray-50 dark:bg-gray-700 text-xs text-center border-t dark:border-gray-700 h-8 flex items-center justify-center text-gray-700 dark:text-gray-300"><span class="font-medium" x-text="getTotalHoursForDay(day) + 'h'"></span></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                 <div class="mt-12 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
+                    <h3 class="text-lg font-semibold mb-4">Weekly Summary (<span x-text="selectedTeamMember ? getTeamMemberNameById(selectedTeamMember) : 'All Team'"></span>)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Total Hours Scheduled</h4><p class="text-2xl font-bold text-gray-900 dark:text-gray-100" x-text="getTotalWeeklyHours() + 'h'"></p></div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Status</h4><div class="flex flex-wrap gap-2 text-xs"><span class="px-2 py-1 bg-gray-200 dark:bg-gray-600 rounded-full text-gray-800 dark:text-gray-100" x-text="`${countWeeklyTasksByStatus('Not Started')} Not Started`"></span><span class="px-2 py-1 bg-blue-200 dark:bg-blue-900 rounded-full text-blue-800 dark:text-blue-100" x-text="`${countWeeklyTasksByStatus('In Progress')} In Progress`"></span><span class="px-2 py-1 bg-red-200 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByStatus('Blocked')} Blocked`"></span><span class="px-2 py-1 bg-green-200 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByStatus('Done')} Done`"></span></div></div>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"><h4 class="text-sm font-medium mb-2 text-gray-500 dark:text-gray-400">Tasks by Project Priority</h4><div class="flex flex-wrap gap-2 text-xs"><span class="px-2 py-1 bg-red-100 dark:bg-red-900 rounded-full text-red-800 dark:text-red-100" x-text="`${countWeeklyTasksByPriority('High')} High`"></span><span class="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 rounded-full text-yellow-800 dark:text-yellow-100" x-text="`${countWeeklyTasksByPriority('Medium')} Medium`"></span><span class="px-2 py-1 bg-green-100 dark:bg-green-900 rounded-full text-green-800 dark:text-green-100" x-text="`${countWeeklyTasksByPriority('Low')} Low`"></span></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard View (unchanged structure) -->
+            <div x-show="currentView === 'dashboard'" class="animate-fade-in">
+                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Total Projects</h3><p class="text-3xl font-bold" x-text="projects.length"></p></div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Active Sprints</h3><p class="text-3xl font-bold" x-text="countActiveSprints()"></p></div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks In Progress</h3><p class="text-3xl font-bold" x-text="countAllTasksByStatus('In Progress')"></p></div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Tasks Completed (All)</h3><p class="text-3xl font-bold" x-text="countAllTasksByStatus('Done')"></p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-lg font-semibold mb-4">Task Status Distribution (All Tasks)</h3><div class="chart-container"><canvas id="taskStatusChart"></canvas></div></div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4"><h3 class="text-lg font-semibold mb-4">Weekly Scheduled Workload (All Team)</h3><div class="chart-container"><canvas id="weeklyWorkloadChart"></canvas></div></div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-6 overflow-hidden">
+                    <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Project Progress</h3></div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="bg-gray-50 dark:bg-gray-750">
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Project</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Deadline</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Status</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider w-1/4">Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <template x-for="project in projects" :key="project.id">
+                                    <tr>
+                                        <td class="py-3 px-4 text-sm font-medium" x-text="project.name"></td>
+                                        <td class="py-3 px-4 text-sm" x-text="formatDate(project.deadline)"></td>
+                                        <td class="py-3 px-4 text-sm"><span class="inline-flex text-xs px-2 py-1 rounded-full font-medium" :class="{ 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100': project.status === 'Not Started', 'bg-blue-200 dark:bg-blue-900 text-blue-800 dark:text-blue-100': project.status === 'In Progress', 'bg-green-200 dark:bg-green-900 text-green-800 dark:text-green-100': project.status === 'Done' }" x-text="project.status"></span></td>
+                                        <td class="py-3 px-4 text-sm align-middle"><div class="flex items-center"><div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2"><div class="bg-primary h-2 rounded-full transition-width duration-500" :style="`width: ${calculateProjectProgress(project.id)}%`"></div></div><span class="text-xs w-8 text-right" x-text="`${calculateProjectProgress(project.id)}%`"></span></div></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="projects.length === 0"><td colspan="4" class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">No projects available</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                 <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                     <div class="p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold">Team Workload</h3></div>
+                    <div class="overflow-x-auto" x-show="teamMembers.length > 0">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr class="bg-gray-50 dark:bg-gray-750">
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Team Member</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Assigned Tasks</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Total Est. Hours</th>
+                                    <th class="text-left py-2 px-4 text-xs font-semibold text-primary-light uppercase tracking-wider">Completed Tasks</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <template x-for="member in teamMembers" :key="member.id">
+                                    <tr>
+                                        <td class="py-3 px-4 text-sm font-medium flex items-center"><span class="w-3 h-3 rounded-full mr-2 flex-shrink-0" :style="`background-color: ${member.color}`"></span><span x-text="member.name"></span></td>
+                                        <td class="py-3 px-4 text-sm" x-text="countTasksAssignedToMember(member.id)"></td>
+                                        <td class="py-3 px-4 text-sm" x-text="`${calculateTotalHoursForMember(member.id)}h`"></td>
+                                        <td class="py-3 px-4 text-sm" x-text="countCompletedTasksForMember(member.id)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center py-8" x-show="teamMembers.length === 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-gray-400 dark:text-gray-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        <p class="text-gray-500 dark:text-gray-400 mb-4">No team members added yet</p>
+                        <button @click="showManageTeamMembersModal = true" class="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">Add Team Members</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="bg-white dark:bg-gray-800 shadow-inner py-4 mt-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                    <div>Tech Workload Manager © <span x-text="new Date().getFullYear()"></span></div>
+                    <div class="mt-2 md:mt-0">Version 1.2.0</div> <!-- Updated version -->
+                </div>
+            </div>
+        </footer>
+
+        <!-- Modals (Project, Sprint, Task, Team, Confirm) - Structure mostly unchanged, but check Task Modal logic -->
+        <div x-show="showAddProjectModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+             <div class="flex items-center justify-center min-h-screen px-4">
+                <div x-show="showAddProjectModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddProjectModal = false"></div>
+                <div x-show="showAddProjectModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-lg p-6">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingProject ? 'Edit Project' : 'Add New Project'"></h2><button @click="showAddProjectModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                    <form @submit.prevent="saveProject()"><div class="mb-4"><label for="projectName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label><input type="text" id="projectName" x-model="projectForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div class="mb-4"><label for="projectDescription" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label><textarea id="projectDescription" x-model="projectForm.description" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></textarea></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"><div><label for="projectPriority" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label><select id="projectPriority" x-model="projectForm.priority" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="High">High</option> <option value="Medium">Medium</option> <option value="Low">Low</option></select></div><div><label for="projectStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="projectStatus" x-model="projectForm.status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="Not Started">Not Started</option> <option value="In Progress">In Progress</option> <option value="Done">Done</option></select></div><div><label for="projectDeadline" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Deadline</label><input type="date" id="projectDeadline" x-model="projectForm.deadline" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div></div><div class="mb-4"><label for="projectNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label><textarea id="projectNotes" x-model="projectForm.notes" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></textarea></div><div class="flex justify-end space-x-3 mt-6"><button type="button" @click="showAddProjectModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button><button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"><span x-text="editingProject ? 'Update Project' : 'Add Project'"></span></button></div></form>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="showAddSprintModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+             <div class="flex items-center justify-center min-h-screen px-4">
+                 <div x-show="showAddSprintModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddSprintModal = false"></div>
+                <div x-show="showAddSprintModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingSprint ? 'Edit Sprint' : 'Add New Sprint'"></h2><button @click="showAddSprintModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                    <form @submit.prevent="saveSprint()"><div class="mb-4"><label for="sprintProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><input type="text" readonly :value="getProjectNameById(sprintForm.projectId)" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-base cursor-not-allowed"><input type="hidden" id="sprintProject" x-model="sprintForm.projectId"><p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Sprint belongs to this project. Cannot be changed.</p></div><div class="mb-4"><label for="sprintName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint Name</label><input type="text" id="sprintName" x-model="sprintForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div class="grid grid-cols-2 gap-4 mb-4"><div><label for="sprintStartDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label><input type="date" id="sprintStartDate" x-model="sprintForm.startDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="sprintEndDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label><input type="date" id="sprintEndDate" x-model="sprintForm.endDate" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div></div><p x-show="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="text-red-500 text-sm mb-4">End date must be after start date.</p><div class="flex justify-end space-x-3 mt-6"><button type="button" @click="showAddSprintModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button><button type="submit" :disabled="sprintForm.startDate && sprintForm.endDate && sprintForm.startDate > sprintForm.endDate" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"><span x-text="editingSprint ? 'Update Sprint' : 'Add Sprint'"></span></button></div></form>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="showAddTaskModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+            <div class="flex items-center justify-center min-h-screen px-4">
+                 <div x-show="showAddTaskModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showAddTaskModal = false"></div>
+                <div x-show="showAddTaskModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-lg p-6">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="editingTask ? 'Edit Task' : 'Add New Task'"></h2><button @click="showAddTaskModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                    <form @submit.prevent="saveTask()"><div class="mb-4"><label for="taskProject" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project</label><select id="taskProject" x-model="taskForm.selectedProjectIdForTask" @change="taskForm.sprintId = ''" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" :disabled="taskForm.prefilledProjectId"><option value="" disabled>-- Select a Project --</option><template x-for="project in projects" :key="project.id"><option :value="project.id" x-text="project.name"></option></template></select></div><div class="mb-4"><label for="taskSprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label><select id="taskSprint" x-model="taskForm.sprintId" required :disabled="!taskForm.selectedProjectIdForTask || getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0 || taskForm.prefilledSprintId" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="" disabled>-- Select a Sprint --</option><template x-for="sprint in getSprintsForProject(taskForm.selectedProjectIdForTask)" :key="sprint.id"><option :value="sprint.id" x-text="sprint.name"></option></template></select><p x-show="taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">No sprints found for the selected project. Add a sprint first.</p></div><div class="mb-4"><label for="taskName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Task Name</label><input type="text" id="taskName" x-model="taskForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4"><div><label for="taskEstimatedHours" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Hours</label><input type="number" id="taskEstimatedHours" x-model.number="taskForm.estimatedHours" min="0.5" step="0.5" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="taskStatus" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label><select id="taskStatus" x-model="taskForm.status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="Not Started">Not Started</option> <option value="In Progress">In Progress</option> <option value="Blocked">Blocked</option> <option value="Done">Done</option></select></div><div><label for="taskAssignedTo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To</label><select id="taskAssignedTo" x-model="taskForm.assignedTo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Unassigned</option><template x-for="member in teamMembers" :key="member.id"><option :value="member.name" x-text="member.name"></option></template></select></div></div><div class="mb-4"><label for="taskDependencies" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dependencies (Optional)</label><input type="text" id="taskDependencies" x-model="taskForm.dependencies" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" placeholder="e.g. 'Task A, Task B'"></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label for="taskScheduledDay" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scheduled Day (Optional)</label><select id="taskScheduledDay" x-model="taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"><option value="">Not scheduled</option><template x-for="day in daysOfWeek" :key="day"> <option :value="day" x-text="day"></option> </template></select></div><div><label for="taskScheduledTimeBlock" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Time Block (Optional)</label><select id="taskScheduledTimeBlock" x-model="taskForm.scheduledTimeBlock" :disabled="!taskForm.scheduledDay" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base disabled:opacity-50 disabled:cursor-not-allowed"><option value="">Not scheduled</option> <option value="Morning">Morning</option> <option value="Afternoon">Afternoon</option></select></div></div><p x-show="taskForm.scheduledDay && !taskForm.scheduledTimeBlock" class="text-red-500 text-sm mb-4">Please select a Time Block if scheduling for a Day.</p><div class="flex justify-end space-x-3 mt-6"><button type="button" @click="showAddTaskModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">Cancel</button><button type="submit" :disabled="(taskForm.scheduledDay && !taskForm.scheduledTimeBlock) || !taskForm.sprintId || (taskForm.selectedProjectIdForTask && getSprintsForProject(taskForm.selectedProjectIdForTask).length === 0)" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"><span x-text="editingTask ? 'Update Task' : 'Add Task'"></span></button></div></form>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="showManageTeamMembersModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+           <div class="flex items-center justify-center min-h-screen px-4">
+                <div x-show="showManageTeamMembersModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showManageTeamMembersModal = false"></div>
+                <div x-show="showManageTeamMembersModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold">Manage Team Members</h2><button @click="showManageTeamMembersModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button></div>
+                    <div class="mb-4 max-h-64 overflow-y-auto pr-2"><template x-for="(member, index) in teamMembers" :key="member.id"><div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg mb-2"><div class="flex items-center"><div class="w-3 h-3 rounded-full mr-3 flex-shrink-0" :style="`background-color: ${member.color}`"></div><div><span class="font-medium text-gray-900 dark:text-gray-100" x-text="member.name"></span><span class="text-xs text-gray-500 dark:text-gray-400 block" x-text="member.role"></span></div></div><button @click="removeTeamMember(member.id)" class="text-gray-500 dark:text-gray-400 hover:text-red-500" title="Remove Member"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg></button></div></template><div x-show="teamMembers.length === 0" class="p-4 text-center text-gray-500 dark:text-gray-400"> No team members added yet </div></div>
+                    <form @submit.prevent="addTeamMember()" class="border-t dark:border-gray-600 pt-4"><h3 class="text-lg font-medium mb-3">Add New Member</h3><div class="grid grid-cols-3 gap-3 mb-4"><div class="col-span-2"><label for="memberName" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label><input type="text" id="memberName" x-model="teamMemberForm.name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base"></div><div><label for="memberColor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label><input type="color" id="memberColor" x-model="teamMemberForm.color" required class="w-full h-10 p-0 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm cursor-pointer"></div></div><div class="mb-4"><label for="memberRole" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label><input type="text" id="memberRole" x-model="teamMemberForm.role" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white text-base" placeholder="e.g. Developer, Designer"></div><div class="flex justify-end"><button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"> Add Member </button></div></form>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="showConfirmModal" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+             <div class="flex items-center justify-center min-h-screen px-4">
+                 <div x-show="showConfirmModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 bg-black/50 dark:bg-black/70" @click="showConfirmModal = false"></div>
+                <div x-show="showConfirmModal" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="relative bg-white dark:bg-gray-800 rounded-lg shadow-lg w-full max-w-md p-6">
+                    <div class="flex justify-between items-center mb-4"><h2 class="text-xl font-bold" x-text="confirmTitle"></h2><button @click="showConfirmModal = false" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /> </svg></button></div>
+                    <p class="text-gray-700 dark:text-gray-300 mb-6" x-text="confirmMessage"></p>
+                    <!-- Updated Delete button for consistency -->
+                    <div class="flex justify-end space-x-3"><button type="button" @click="showConfirmModal = false" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"> Cancel </button><button @click="confirmAction(); showConfirmModal = false;" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"> Delete </button></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'techWorkloadManagerData_v1_2'; // Incremented version to avoid conflicts
+        function loadState() { const savedState = localStorage.getItem(STORAGE_KEY); if (savedState) { try { return JSON.parse(savedState); } catch (e) { console.error("Error loading saved state:", e); localStorage.removeItem(STORAGE_KEY); } } return null; }
+        function saveState(state) { try { const stateToSave = { currentView: state.currentView, expandedProjectId: state.expandedProjectId, expandedSprintId: state.expandedSprintId, selectedTeamMember: state.selectedTeamMember, selectedProjectStatusTab: state.selectedProjectStatusTab, calendarDate: state.calendarDate.toISOString(), projects: JSON.parse(JSON.stringify(state.projects)), sprints: JSON.parse(JSON.stringify(state.sprints)), tasks: JSON.parse(JSON.stringify(state.tasks)), teamMembers: JSON.parse(JSON.stringify(state.teamMembers)), }; localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave)); } catch (e) { console.error("Error saving state:", e); } }
+        function initDarkMode() { if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { document.documentElement.classList.add('dark'); } else { document.documentElement.classList.remove('dark'); } if (window.appInstance && (window.appInstance.taskStatusChartInstance || window.appInstance.weeklyWorkloadChartInstance)) { window.appInstance.updateCharts(); } }
+        initDarkMode(); window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { localStorage.removeItem('theme'); initDarkMode(); });
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substring(2, 9); }
+
+        function app() {
+            const initialState = loadState();
+            return {
+                currentView: initialState?.currentView || 'projects',
+                expandedProjectId: initialState?.expandedProjectId || null,
+                expandedSprintId: initialState?.expandedSprintId || null, // NEW: State for expanded sprint
+                selectedProjectStatusTab: initialState?.selectedProjectStatusTab || 'In Progress', // NEW: State for project tabs
+                selectedTeamMember: initialState?.selectedTeamMember || null,
+                calendarDate: initialState?.calendarDate ? new Date(initialState.calendarDate) : new Date(),
+                draggedTask: null,
+                projects: initialState?.projects || [],
+                sprints: initialState?.sprints || [],
+                tasks: initialState?.tasks || [],
+                teamMembers: initialState?.teamMembers || [],
+                projectForm: {}, sprintForm: {}, taskForm: {}, teamMemberForm: {},
+                showAddProjectModal: false, showAddSprintModal: false, showAddTaskModal: false, showManageTeamMembersModal: false, showConfirmModal: false,
+                editingProject: false, editingSprint: false, editingTask: false,
+                confirmTitle: '', confirmMessage: '', confirmAction: () => {},
+                daysOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+                taskStatusChartInstance: null, weeklyWorkloadChartInstance: null,
+
+                initApp() {
+                    window.appInstance = this;
+                    if (!initialState) {
+                        this.loadSampleData();
+                    }
+                    this.resetProjectForm();
+                    this.resetSprintForm();
+                    this.resetTaskForm();
+                    this.resetTeamMemberForm();
+                    if (this.currentView === 'dashboard') {
+                        this.$nextTick(() => this.initCharts());
+                    }
+                    // Watch for changes to save state, including new state variables
+                    this.$watch(['projects', 'sprints', 'tasks', 'teamMembers', 'currentView', 'expandedProjectId', 'expandedSprintId', 'selectedTeamMember', 'selectedProjectStatusTab', 'calendarDate'], Alpine.debounce(() => {
+                        saveState(this);
+                        if (this.currentView === 'dashboard' && (this.taskStatusChartInstance || this.weeklyWorkloadChartInstance)) {
+                            this.$nextTick(() => this.updateCharts());
+                        }
+                    }, 500));
+                },
+                loadSampleData(){console.log("Loading sample data...");this.teamMembers=[{id:generateId(),name:'Alice Green',role:'Lead Developer',color:'#4F46E5'},{id:generateId(),name:'Bob White',role:'UI/UX Designer',color:'#DB2777'},{id:generateId(),name:'Charlie Black',role:'Project Manager',color:'#059669'},{id:generateId(),name:'David Grey',role:'QA Tester',color:'#F59E0B'}];const p1=generateId(),p2=generateId(),p3=generateId(),p4=generateId();this.projects.push({id:p1,name:'E-commerce Platform',description:'Build a new online store with modern features.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+90))),notes:'Integrate Stripe, focus on performance.',status:'In Progress',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p2,name:'Internal Dashboard',description:'Develop an internal tool for monitoring key metrics.',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+45))),notes:'',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p3,name:'Blog Migration',description:'Migrate legacy blog posts to new CMS.',priority:'Low',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+60))),notes:'Ensure redirects are set up.',status:'Not Started',created:new Date().toISOString(),modified:new Date().toISOString()});this.projects.push({id:p4,name:'Mobile App Refactor',description:'Refactor codebase for the iOS and Android apps.',priority:'High',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+120))),notes:'Improve performance and stability.',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});const s1=generateId(),s2=generateId(),s3=generateId(),s4=generateId(),s5=generateId();this.sprints.push({id:s1,projectId:p1,name:'Sprint 1 - Auth & UI Setup',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-7))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+7))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s2,projectId:p1,name:'Sprint 2 - Product Catalog',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+8))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+22))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s3,projectId:p2,name:'Dashboard Sprint 1 - Metrics API',startDate:this.formatDateForInput(new Date()),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+14))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s4,projectId:p4,name:'Refactor - Core Modules',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-30))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-16))),created:new Date().toISOString(),modified:new Date().toISOString()});this.sprints.push({id:s5,projectId:p4,name:'Refactor - UI Polish',startDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-15))),endDate:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()-1))),created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Design login page',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',scheduledDay:'Monday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Implement JWT authentication',estimatedHours:8,dependencies:'Design login page',assignedTo:'Alice Green',status:'In Progress',scheduledDay:'Tuesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Setup basic UI components library',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'In Progress',scheduledDay:'Monday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s2,name:'Define product schema',estimatedHours:3,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s2,name:'Design product listing page',estimatedHours:5,dependencies:'',assignedTo:'Bob White',status:'Not Started',scheduledDay:'Thursday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Sprint planning meeting',estimatedHours:1,dependencies:'',assignedTo:'Charlie Black',status:'Done',scheduledDay:'',scheduledTimeBlock:'',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s3,name:'Define Metrics API endpoints',estimatedHours:4,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Wednesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s3,name:'Setup dashboard project',estimatedHours:2,dependencies:'',assignedTo:'Alice Green',status:'Not Started',scheduledDay:'Tuesday',scheduledTimeBlock:'Afternoon',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s1,name:'Test login flow',estimatedHours:3,dependencies:'Implement JWT authentication',assignedTo:'David Grey',status:'Not Started',scheduledDay:'Friday',scheduledTimeBlock:'Morning',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s4,name:'Update dependency management',estimatedHours:8,dependencies:'',assignedTo:'Alice Green',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s5,name:'Implement new splash screen',estimatedHours:4,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});this.tasks.push({id:generateId(),sprintId:s5,name:'Fix animation glitches on profile page',estimatedHours:6,dependencies:'',assignedTo:'Bob White',status:'Done',created:new Date().toISOString(),modified:new Date().toISOString()});},
+
+                // Drag and Drop (unchanged)
+                handleDragStart(event,task){this.draggedTask=task;event.target.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',task.id);},
+                handleDragEnd(event){try{if(event.target&&event.target.classList.contains('dragging')){event.target.classList.remove('dragging');}}finally{this.draggedTask=null;document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}},
+                handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
+                handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
+                handleDrop(event,day,timeBlock){event.currentTarget.classList.remove('drag-over');if(!this.draggedTask)return;const taskId=event.dataTransfer.getData('text/plain');const taskIndex=this.tasks.findIndex(t=>t.id===taskId);if(taskIndex!==-1){const updatedTask={...this.tasks[taskIndex],scheduledDay:day,scheduledTimeBlock:timeBlock,modified:new Date().toISOString()};this.tasks.splice(taskIndex,1,updatedTask);}},
+
+                setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}}, // Reset expanded sprint too
+
+                // Project Methods (Status change might impact tab visibility)
+                resetProjectForm(){this.projectForm={id:null,name:'',description:'',priority:'Medium',deadline:this.formatDateForInput(new Date(new Date().setDate(new Date().getDate()+30))),notes:'',status:'Not Started'};this.editingProject=false;},
+                editProject(project){this.projectForm={...project};this.editingProject=true;this.showAddProjectModal=true;},
+                saveProject(){if(!this.projectForm.name||!this.projectForm.deadline)return;if(this.editingProject){const index=this.projects.findIndex(p=>p.id===this.projectForm.id);if(index!==-1){this.projects.splice(index,1,{...this.projectForm,modified:new Date().toISOString()});}}else{this.projects.push({...this.projectForm,id:generateId(),created:new Date().toISOString(),modified:new Date().toISOString()});}this.showAddProjectModal=false;}, // Status change automatically handled by filter
+                confirmDeleteProject(project){this.confirmTitle='Delete Project';this.confirmMessage=`Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`;this.confirmAction=()=>this.deleteProject(project.id);this.showConfirmModal=true;},
+                deleteProject(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);this.tasks=this.tasks.filter(t=>!sprintIds.includes(t.sprintId));this.sprints=this.sprints.filter(s=>s.projectId!==projectId);this.projects=this.projects.filter(p=>p.id!==projectId);if(this.expandedProjectId===projectId){this.expandedProjectId=null;}},
+                calculateProjectProgress(projectId){const sprintIds=this.sprints.filter(s=>s.projectId===projectId).map(s=>s.id);const projectTasks=this.tasks.filter(t=>sprintIds.includes(t.sprintId));if(projectTasks.length===0)return 0;const completedTasks=projectTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/projectTasks.length)*100);},
+                getProjectNameById(projectId){return this.projects.find(p=>p.id===projectId)?.name||'Unknown Project';},
+
+                // Sprint Methods
+                getSprintsForProject(projectId){const sprints=this.sprints.filter(s=>s.projectId===projectId);return[...sprints].sort((a,b)=>new Date(b.startDate)-new Date(a.startDate));},
+                resetSprintForm(projectId=null){const today=new Date();const twoWeeksLater=new Date();twoWeeksLater.setDate(today.getDate()+14);this.sprintForm={id:null,projectId:projectId||'',name:'',startDate:this.formatDateForInput(today),endDate:this.formatDateForInput(twoWeeksLater)};this.editingSprint=false;},
+                editSprint(sprint){this.sprintForm={...sprint};this.editingSprint=true;this.showAddSprintModal=true;},
+                saveSprint(){if(!this.sprintForm.name||!this.sprintForm.projectId||!this.sprintForm.startDate||!this.sprintForm.endDate||this.sprintForm.startDate>this.sprintForm.endDate)return;if(this.editingSprint){const index=this.sprints.findIndex(s=>s.id===this.sprintForm.id);if(index!==-1){this.sprints.splice(index,1,{...this.sprints[index],name:this.sprintForm.name,startDate:this.sprintForm.startDate,endDate:this.sprintForm.endDate,modified:new Date().toISOString()});}}else{this.sprints.push({...this.sprintForm,id:generateId(),created:new Date().toISOString(),modified:new Date().toISOString()});}this.showAddSprintModal=false;},
+                confirmDeleteSprint(sprint){this.confirmTitle='Delete Sprint';this.confirmMessage=`Are you sure you want to delete "${sprint.name}"? This will also delete all tasks in this sprint. This action cannot be undone.`;this.confirmAction=()=>this.deleteSprint(sprint.id);this.showConfirmModal=true;},
+                deleteSprint(sprintId){this.tasks=this.tasks.filter(t=>t.sprintId!==sprintId);this.sprints=this.sprints.filter(s=>s.id!==sprintId);if(this.expandedSprintId===sprintId){this.expandedSprintId=null;}},
+                calculateSprintProgress(sprintId){const sprintTasks=this.getTasksForSprint(sprintId);if(sprintTasks.length===0)return 0;const completedTasks=sprintTasks.filter(t=>t.status==='Done').length;return Math.round((completedTasks/sprintTasks.length)*100);},
+                countTasksByStatus(sprintId,status){return this.getTasksForSprint(sprintId).filter(t=>t.status===status).length;},
+                countActiveSprints(){const todayStr=this.formatDateForInput(new Date());return this.sprints.filter(sprint=>sprint.startDate<=todayStr&&sprint.endDate>=todayStr).length;},
+
+                // Task Methods
+                getTasksForSprint(sprintId){ // NEW: Helper to get tasks for a specific sprint
+                    return this.tasks.filter(t => t.sprintId === sprintId)
+                        .sort((a, b) => {
+                             const statusOrder = { 'Not Started': 0, 'In Progress': 1, 'Blocked': 2, 'Done': 3 };
+                             const statusDiff = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
+                             if (statusDiff !== 0) return statusDiff;
+                             return a.name.localeCompare(b.name);
+                        });
+                },
+                resetTaskForm() {
+                    this.taskForm = {
+                        id: null,
+                        selectedProjectIdForTask: '',
+                        sprintId: '',
+                        name: '',
+                        estimatedHours: 1,
+                        dependencies: '',
+                        assignedTo: '',
+                        status: 'Not Started',
+                        scheduledDay: '',
+                        scheduledTimeBlock: '',
+                        prefilledProjectId: false, // Flags for disabling fields if pre-filled
+                        prefilledSprintId: false
+                    };
+                    this.editingTask = false;
+                },
+                editTask(task){
+                    this.resetTaskForm();
+                    const sprint = this.sprints.find(s => s.id === task.sprintId);
+                    this.taskForm = {
+                        ...task,
+                        selectedProjectIdForTask: sprint ? sprint.projectId : '',
+                        prefilledProjectId: true, // When editing, lock project/sprint initially
+                        prefilledSprintId: true
+                    };
+                    this.editingTask = true;
+                    this.showAddTaskModal = true;
+                    // Small delay to allow UI update before potentially re-enabling if needed
+                    // This part is tricky, usually editing shouldn't allow changing sprint easily.
+                    // Let's keep them disabled for editing for simplicity. User can delete/re-add if needed.
+                    // If you NEED to change sprint/project on edit, remove prefilled flags and related :disabled in modal.
+                },
+                openAddTaskModalForSlot(day,timeBlock,event){ // Opens from Calendar
+                    if(event && event.target.closest('.calendar-task')){return;} // Don't open if clicking task
+                    this.resetTaskForm();
+                    this.taskForm.scheduledDay = day;
+                    this.taskForm.scheduledTimeBlock = timeBlock;
+                    this.showAddTaskModal = true;
+                },
+                openAddTaskForSprint(sprintId, projectId) { // NEW: Opens from Sprint View
+                    this.resetTaskForm();
+                    this.taskForm.selectedProjectIdForTask = projectId;
+                    this.taskForm.sprintId = sprintId;
+                    this.taskForm.prefilledProjectId = true; // Disable project/sprint selection
+                    this.taskForm.prefilledSprintId = true;
+                    this.showAddTaskModal = true;
+                },
+                saveTask(){if(!this.taskForm.name||!this.taskForm.selectedProjectIdForTask||!this.taskForm.sprintId||this.taskForm.estimatedHours<=0){alert('Please fill all required fields (Name, Project, Sprint, Est. Hours).');return;}if(this.taskForm.scheduledDay&&!this.taskForm.scheduledTimeBlock){alert('Please select a Time Block if scheduling for a Day.');return;}if(!this.taskForm.scheduledDay){this.taskForm.scheduledTimeBlock='';}
+                    const taskDataToSave = { ...this.taskForm };
+                    // Clean up helper flags before saving
+                    delete taskDataToSave.selectedProjectIdForTask;
+                    delete taskDataToSave.prefilledProjectId;
+                    delete taskDataToSave.prefilledSprintId;
+
+                    if(this.editingTask){
+                        const index = this.tasks.findIndex(t => t.id === taskDataToSave.id);
+                        if(index !== -1){
+                             // Ensure sprintId isn't lost if it was prefilled/disabled
+                             taskDataToSave.sprintId = this.tasks[index].sprintId;
+                             this.tasks.splice(index, 1, { ...taskDataToSave, modified: new Date().toISOString() });
+                        }
+                    } else {
+                        this.tasks.push({ ...taskDataToSave, id: generateId(), created: new Date().toISOString(), modified: new Date().toISOString() });
+                    }
+                    this.showAddTaskModal = false;
+                },
+                confirmDeleteTask(task){this.confirmTitle='Delete Task';this.confirmMessage=`Are you sure you want to delete the task "${task.name}"? This action cannot be undone.`;this.confirmAction=()=>this.deleteTask(task.id);this.showConfirmModal=true;},
+                deleteTask(taskId){this.tasks=this.tasks.filter(t=>t.id!==taskId);},
+                countAllTasksByStatus(status){return this.tasks.filter(t=>t.status===status).length;},
+
+                // Team Member Methods (unchanged)
+                resetTeamMemberForm(){this.teamMemberForm={name:'',role:'',color:'#'+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')};},
+                addTeamMember(){if(!this.teamMemberForm.name||!this.teamMemberForm.role)return;if(this.teamMembers.some(m=>m.name.toLowerCase()===this.teamMemberForm.name.toLowerCase())){alert('A team member with this name already exists.');return;}this.teamMembers.push({...this.teamMemberForm,id:generateId()});this.resetTeamMemberForm();},
+                removeTeamMember(memberId){const member=this.teamMembers.find(m=>m.id===memberId);if(!member)return;this.confirmTitle='Remove Team Member';this.confirmMessage=`Are you sure you want to remove ${member.name}? Tasks assigned to them will become unassigned.`;this.confirmAction=()=>{this.tasks=this.tasks.map(task=>task.assignedTo===member.name?{...task,assignedTo:'',modified:new Date().toISOString()}:task);this.teamMembers=this.teamMembers.filter(m=>m.id!==memberId);if(this.selectedTeamMember===memberId)this.selectedTeamMember=null;};this.showConfirmModal=true;}, // Use confirm modal
+                countTasksAssignedToMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).length;},
+                calculateTotalHoursForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
+                countCompletedTasksForMember(memberId){const memberName=this.getTeamMemberNameById(memberId);return this.tasks.filter(t=>t.assignedTo===memberName&&t.status==='Done').length;},
+                getTeamMemberNameById(id){return this.teamMembers.find(m=>m.id===id)?.name||'';},
+                getTeamMemberColor(name,alpha=0.2){const defaultColor=document.documentElement.classList.contains('dark')?`rgba(75, 85, 99, ${alpha})`:`rgba(209, 213, 219, ${alpha})`;if(!name)return defaultColor;const member=this.teamMembers.find(m=>m.name===name);const hexColor=member?member.color:'#9ca3af';let r=0,g=0,b=0;if(hexColor.length===4){r=parseInt(hexColor[1]+hexColor[1],16);g=parseInt(hexColor[2]+hexColor[2],16);b=parseInt(hexColor[3]+hexColor[3],16);}else if(hexColor.length===7){r=parseInt(hexColor[1]+hexColor[2],16);g=parseInt(hexColor[3]+hexColor[4],16);b=parseInt(hexColor[5]+hexColor[6],16);}else{return defaultColor;}return`rgba(${r}, ${g}, ${b}, ${alpha})`;},
+                getTaskPriorityColor(task) { // Helper for calendar task border color
+                    const priority = this.getTaskPriority(task);
+                    switch (priority) {
+                        case 'High': return '#ef4444'; // red-500
+                        case 'Medium': return '#f59e0b'; // yellow-500
+                        case 'Low': return '#10b981'; // green-500
+                        default: return '#9ca3af'; // gray-400
+                    }
+                },
+
+                // Calendar View Methods
+                get scheduledTasksForWeek(){const currentDisplayedDays=this.daysOfWeek;const mondayOfViewWeek = this.getMonday(this.calendarDate); const fridayOfViewWeek = new Date(mondayOfViewWeek); fridayOfViewWeek.setDate(mondayOfViewWeek.getDate() + 4); return this.tasks.filter(task=>{if(!task.scheduledDay||!task.scheduledTimeBlock)return false; const taskDateIndex = this.daysOfWeek.indexOf(task.scheduledDay); if (taskDateIndex === -1) return false; const taskDate = new Date(mondayOfViewWeek); taskDate.setDate(mondayOfViewWeek.getDate() + taskDateIndex); if (taskDate < mondayOfViewWeek || taskDate > fridayOfViewWeek) return false; const memberMatch=this.selectedTeamMember===null||task.assignedTo===this.getTeamMemberNameById(this.selectedTeamMember);return memberMatch;});},
+                getTasksForDayAndTime(day,timeBlock){const filteredTasks=this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock);const priorityOrder={'High':0,'Medium':1,'Low':2};const statusOrder={'Not Started':0,'In Progress':1,'Blocked':2,'Done':3};return[...filteredTasks].sort((a,b)=>{const priorityA=this.getTaskPriority(a);const priorityB=this.getTaskPriority(b);const priorityDiff=(priorityOrder[priorityA]??99)-(priorityOrder[priorityB]??99);if(priorityDiff!==0)return priorityDiff;const statusDiff=statusOrder[a.status]-statusOrder[b.status];if(statusDiff!==0)return statusDiff;return a.name.localeCompare(b.name);});},
+                getTaskPriority(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return null;const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.priority:null;},
+                getProjectNameForTask(task){const sprint=this.sprints.find(s=>s.id===task.sprintId);if(!sprint)return'Unknown Project';const project=this.projects.find(p=>p.id===sprint.projectId);return project?project.name:'Unknown Project';},
+                getTotalHoursForDayAndTime(day,timeBlock){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day&&task.scheduledTimeBlock===timeBlock).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
+                getTotalHoursForDay(day){return this.scheduledTasksForWeek.filter(task=>task.scheduledDay===day).reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
+                getTotalWeeklyHours(){return this.scheduledTasksForWeek.reduce((sum,task)=>sum+(Number(task.estimatedHours)||0),0);},
+                previousWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()-7);this.calendarDate=newDate;},
+                nextWeek(){const newDate=new Date(this.calendarDate);newDate.setDate(newDate.getDate()+7);this.calendarDate=newDate;},
+                formatWeekRange(){const startOfWeek=this.getMonday(this.calendarDate);const endOfWeek=new Date(startOfWeek);endOfWeek.setDate(startOfWeek.getDate()+(this.daysOfWeek.length-1));const options={month:'short',day:'numeric'};const startStr=startOfWeek.toLocaleDateString('en-US',options);const endStr=endOfWeek.toLocaleDateString('en-US',options);const year=endOfWeek.getFullYear();return`${startStr} - ${endStr}, ${year}`;},
+                formatDayDate(dayIndex){const date=this.getMonday(this.calendarDate);date.setDate(date.getDate()+dayIndex);return`${date.getMonth()+1}/${date.getDate()}`;},
+                getMonday(d){const date=new Date(d);const day=date.getDay();const diff=date.getDate()-day+(day===0?-6:1);const monday=new Date(date.setDate(diff));monday.setHours(0,0,0,0);return monday;},
+                getWeeklyTasks(){return this.scheduledTasksForWeek;},
+                countWeeklyTasksByStatus(status){return this.getWeeklyTasks().filter(task=>task.status===status).length;},
+                countWeeklyTasksByPriority(priority){return this.getWeeklyTasks().filter(task=>this.getTaskPriority(task)===priority).length;},
+
+                // Chart Methods (unchanged logic, just ensure they re-init on tab change if needed)
+                destroyCharts(){if(this.taskStatusChartInstance){this.taskStatusChartInstance.destroy();this.taskStatusChartInstance=null;}if(this.weeklyWorkloadChartInstance){this.weeklyWorkloadChartInstance.destroy();this.weeklyWorkloadChartInstance=null;}},
+                initCharts(){this.$nextTick(()=>{this.destroyCharts();this.initTaskStatusChart();this.initWeeklyWorkloadChart();});},
+                initTaskStatusChart(){const ctx=document.getElementById('taskStatusChart')?.getContext('2d');if(!ctx)return;const statuses=['Not Started','In Progress','Blocked','Done'];const counts=statuses.map(status=>this.countAllTasksByStatus(status));const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';this.taskStatusChartInstance=new Chart(ctx,{type:'doughnut',data:{labels:statuses,datasets:[{data:counts,backgroundColor:[isDarkMode?'rgba(107, 114, 128, 0.7)':'rgba(156, 163, 175, 0.8)',isDarkMode?'rgba(96, 165, 250, 0.7)':'rgba(59, 130, 246, 0.8)',isDarkMode?'rgba(248, 113, 113, 0.7)':'rgba(239, 68, 68, 0.8)',isDarkMode?'rgba(52, 211, 153, 0.7)':'rgba(16, 185, 129, 0.8)'],borderColor:isDarkMode?'#1f2937':'#ffffff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:textColor,padding:15,boxWidth:12,}},tooltip:{callbacks:{label:function(context){let label=context.label||'';if(label){label+=': ';}if(context.parsed!==null){label+=context.parsed;}const total=context.dataset.data.reduce((a,b)=>a+b,0);const percentage=total>0?Math.round((context.parsed/total)*100):0;label+=` (${percentage}%)`;return label;}}}}}});},
+                initWeeklyWorkloadChart(){const ctx=document.getElementById('weeklyWorkloadChart')?.getContext('2d');if(!ctx)return;const originalFilter=this.selectedTeamMember;this.selectedTeamMember=null; // Calculate for all team
+                const mondayOfViewWeek = this.getMonday(this.calendarDate);
+                const dailyHours=this.daysOfWeek.map((day, index)=>{
+                    const currentDay = new Date(mondayOfViewWeek);
+                    currentDay.setDate(mondayOfViewWeek.getDate() + index);
+                    return this.tasks.filter(task => task.scheduledDay === day && this.isTaskInCurrentWeek(task, mondayOfViewWeek))
+                                .reduce((sum, task) => sum + (Number(task.estimatedHours) || 0), 0);
+                 });
+                this.selectedTeamMember=originalFilter; // Restore filter
+
+                const isDarkMode=document.documentElement.classList.contains('dark');const textColor=isDarkMode?'#e5e7eb':'#374151';const gridColor=isDarkMode?'rgba(255, 255, 255, 0.1)':'rgba(0, 0, 0, 0.05)';const barColor=isDarkMode?'rgba(129, 128, 228, 0.7)':'rgba(93, 92, 222, 0.8)';this.weeklyWorkloadChartInstance=new Chart(ctx,{type:'bar',data:{labels:this.daysOfWeek.map(d=>d.substring(0,3)),datasets:[{label:'Est. Hours Scheduled',data:dailyHours,backgroundColor:barColor,borderRadius:4,}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,grid:{color:gridColor},ticks:{color:textColor},title:{display:true,text:'Hours',color:textColor}},x:{grid:{display:false},ticks:{color:textColor}}},plugins:{legend:{display:false},tooltip:{callbacks:{label:function(context){return` ${context.parsed.y} hours`;}}}}}});},
+                updateCharts(){if(this.currentView==='dashboard'){this.initCharts();}},
+                isTaskInCurrentWeek(task, mondayOfViewWeek) { // Helper for workload chart
+                     if (!task.scheduledDay) return false;
+                     const taskDateIndex = this.daysOfWeek.indexOf(task.scheduledDay);
+                     if (taskDateIndex === -1) return false;
+                     const taskDate = new Date(mondayOfViewWeek);
+                     taskDate.setDate(mondayOfViewWeek.getDate() + taskDateIndex);
+                     const fridayOfViewWeek = new Date(mondayOfViewWeek);
+                     fridayOfViewWeek.setDate(mondayOfViewWeek.getDate() + 4);
+                     return taskDate >= mondayOfViewWeek && taskDate <= fridayOfViewWeek;
+                 },
+                // Date Formatting (unchanged)
+                formatDate(dateString){if(!dateString)return'N/A';try{const date=new Date(dateString+'T00:00:00');if(isNaN(date))return'Invalid Date';return date.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'});}catch(e){console.error("Error formatting date:",dateString,e);return'Invalid Date';}},
+                formatDateForInput(date){if(!date||!(date instanceof Date)||isNaN(date))return'';try{return date.toISOString().split('T')[0];}catch(e){console.error("Error formatting date for input:",date,e);return'';}}
+            };
+        }
+    </script>
+
+</body>
+</html>
