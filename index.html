@@ -734,40 +734,23 @@
 
                 resetProjectForm() { this.projectForm = { id: null, name: '', description: '', priority: 'Medium', deadline: this.formatDateForInput(new Date(new Date().setDate(new Date().getDate() + 30))), notes: '', status: 'Not Started' }; this.editingProject = false; },
                 editProject(project) { this.projectForm = { ...project }; this.editingProject = true; this.showAddProjectModal = true; },
-                async saveProject() {
-                    if (!this.projectForm.name || !this.projectForm.deadline) { alert('Project Name and Deadline are required.'); return; }
-                    const nowISO = new Date().toISOString();
-                    const projectData = { ...this.projectForm, modified: nowISO };
-                    let dbPayload = { ...projectData }; // Clone for DB operation
-                    if (dbPayload.id === null) {
-                        delete dbPayload.id; // Remove null ID for insert
-                    }
-
+                              async saveProject() {
+                    // ... (validation and setup code) ...
                     try {
                         let resultData;
                         if (this.editingProject) {
-                             // Use supabaseClient
-                            const { data, error } = await supabaseClient
-                                .from('projects')
-                                .update(dbPayload)
-                                .eq('id', projectData.id) // Use original ID from form for matching
-                                .select()
-                                .single();
-                            if (error) throw error;
-                            resultData = data;
-
-                            const index = this.projects.findIndex(p => p.id === resultData.id);
-                            if (index !== -1) {
-                                this.projects.splice(index, 1, resultData);
-                            }
+                            // ... (update logic - likely already correct as it doesn't use 'created') ...
                         } else {
-                            dbPayload.created = nowISO;
+                            // **** THIS IS THE LINE TO CHANGE ****
+                            // dbPayload.created = nowISO; // OLD - Incorrect column name
+                            dbPayload.created_at = nowISO; // NEW - Correct column name
+
                             if (!dbPayload.id) dbPayload.id = generateId(); // Add generated ID if needed
 
                              // Use supabaseClient
                             const { data, error } = await supabaseClient
                                 .from('projects')
-                                .insert([dbPayload])
+                                .insert([dbPayload]) // dbPayload now has 'created_at'
                                 .select()
                                 .single();
                             if (error) throw error;
@@ -778,6 +761,7 @@
                     } catch (error) {
                         console.error("Error saving project:", error);
                         alert(`Failed to save project: ${error.message}`);
+                    }
                     }
                 },
                 confirmDeleteProject(project) { this.confirmTitle = 'Delete Project'; this.confirmMessage = `Are you sure you want to delete "${project.name}"? This will also delete all related sprints and tasks. This action cannot be undone.`; this.confirmAction = () => this.deleteProject(project.id); this.showConfirmModal = true; },
