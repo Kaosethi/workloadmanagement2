@@ -232,6 +232,7 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
  @dragover.prevent 
     @drop.prevent      
     <div id="app" x-data="app()" x-init="$nextTick(() => initApp())" class="flex flex-col min-h-screen">
+ @dragover.prevent="handleAppDragOver($event)"
         <header class="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center py-4">
@@ -764,7 +765,20 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                     this.isLoading = false; // Set loading to false after data is loaded
                 },
 
-                async loadDataFromSupabase() {
+handleAppDragOver(event) {
+    // If we are dragging a task...
+    if (this.draggedTask) {
+        // Check if the mouse is NOT currently over a valid drop zone (time-block)
+        if (!event.target.closest('.time-block')) {
+            // Tell the browser the intended effect is 'move'
+            // This usually results in the 'move' cursor, not 'not-allowed'
+            event.dataTransfer.dropEffect = 'move';
+        }
+        // If the mouse *is* over a time-block, its specific handler will manage the cursor/effect.
+        // The .prevent modifier on the HTML tag handles event.preventDefault()
+    }
+},                
+async loadDataFromSupabase() {
                     console.log("Attempting to load data from Supabase...");
                     this.isLoading = true;
                     try {
@@ -864,8 +878,12 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                     this.successfulDropOccurred = false; // Reset flag for next drag
                     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 },
-                handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
-                handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
+                handleDragOver(event){if(this.draggedTask)
+ event.preventDefault();
+ event.dataTransfer.dropEffect = 'move';
+{event.currentTarget.classList.add('drag-over');}},
+                
+handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
 
                 setView(view){this.currentView=view;if(view==='dashboard'){this.$nextTick(()=>this.initCharts());}else if (view === 'calendar'){this.$nextTick(()=>this.initWeeklyWorkloadChart())}if(view!=='projects'){this.expandedProjectId=null;this.expandedSprintId=null;}},
 
