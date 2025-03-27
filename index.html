@@ -731,7 +731,8 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                 selectedProjectStatusTab: 'In Progress',
                 selectedTeamMember: null,
                 calendarDate: new Date(),
-                draggedTask: null,
+                                draggedTask: null,
+                successfulDropOccurred: false,
                 projects: [],
                 sprints: [],
                 tasks: [],
@@ -811,7 +812,6 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                         // delete updatedData.id;
 
                         console.log("Updating task schedule in DB:", updatedData);
-
                         try {
                             const { data: updatedDbTask, error } = await supabaseClient
                                 .from('tasks')
@@ -827,7 +827,8 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                             // Update local state ONLY after successful DB update
                             const updatedLocalTask = mapFromDbTask(updatedDbTask); // Map DB result back
                             this.tasks.splice(taskIndex, 1, updatedLocalTask);
-                            this.draggedTask = null; // Clear dragged task
+                            this.successfulDropOccurred = true; // <--- ADD THIS LINE
+                            // No need to clear draggedTask here, handleDragEnd will do it
 
                         } catch (error) {
                             console.error('Error updating task schedule in DB:', error);
@@ -835,10 +836,32 @@ const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
                             // Local state remains unchanged if DB update fails
                         }
                     }
+                     // Do NOT clear draggedTask here anymore
                 },
 
-                handleDragStart(event,task){this.draggedTask=task;event.target.classList.add('dragging');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',task.id);},
-                handleDragEnd(event){try{if(event.target&&event.target.classList.contains('dragging')){event.target.classList.remove('dragging');}}finally{this.draggedTask=null;document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}},
+                                handleDragStart(event, task) {
+                    this.draggedTask = task;
+                    this.successfulDropOccurred = false; // <--- ADD THIS LINE
+                    event.target.classList.add('dragging');
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', task.id);
+                },
+                                handleDragEnd(event) {
+                    // Check if a task was being dragged and if a successful drop DID NOT occur
+                    if (this.draggedTask && !this.successfulDropOccurred) {
+                        console.log(`Task "${this.draggedTask.name}" dropped outside valid area. Unscheduling.`);
+                        // Call the function to remove calendar scheduling
+                        this.removeTaskFromCalendar(this.draggedTask.id);
+                    }
+
+                    // Cleanup regardless of drop success
+                    if (event.target && event.target.classList.contains('dragging')) {
+                        event.target.classList.remove('dragging');
+                    }
+                    this.draggedTask = null;
+                    this.successfulDropOccurred = false; // Reset flag for next drag
+                    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+                },
                 handleDragOver(event){if(this.draggedTask){event.currentTarget.classList.add('drag-over');}},
                 handleDragLeave(event){if(!event.currentTarget.contains(event.relatedTarget)){event.currentTarget.classList.remove('drag-over');}},
 
